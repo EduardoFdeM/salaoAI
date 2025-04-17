@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from 'react'
-import { Calendar, dateFnsLocalizer } from 'react-big-calendar'
-import { format, parse, startOfWeek, getDay } from 'date-fns'
+import { useState, useCallback } from 'react'
+import { Calendar, dateFnsLocalizer, View } from 'react-big-calendar'
+import { format, parse, startOfWeek, getDay, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
@@ -55,6 +55,18 @@ const MOCK_APPOINTMENTS: Appointment[] = [
   { id: 'a6', start_time: '2023-11-16T16:00:00Z', end_time: '2023-11-16T17:00:00Z', client_id: 'c3', professional_id: 'p1', service_id: 's1', salon_id: '1', status: AppointmentStatus.CANCELLED_BY_CLIENT },
 ];
 
+// Tipos para os filtros
+type SortField = 'date' | 'client' | 'service' | 'professional' | 'status'
+type SortOrder = 'asc' | 'desc'
+type FilterState = {
+  dateRange: { start: Date | null; end: Date | null }
+  professional: string | null
+  service: string | null
+  status: AppointmentStatus | null
+  sortBy: SortField
+  sortOrder: SortOrder
+}
+
 function getStatusBadgeVariant(status: AppointmentStatus): "default" | "secondary" | "destructive" | "outline" {
    switch (status) {
     case AppointmentStatus.CONFIRMED:
@@ -87,23 +99,14 @@ function formatStatus(status: AppointmentStatus): string {
   return map[status] || status;
 }
 
-// Tipos para os filtros
-type SortField = 'date' | 'client' | 'service' | 'professional' | 'status'
-type SortOrder = 'asc' | 'desc'
-type FilterState = {
-  dateRange: { start: Date | null; end: Date | null }
-  professional: string | null
-  service: string | null
-  status: AppointmentStatus | null
-  sortBy: SortField
-  sortOrder: SortOrder
-}
-
 export default function AppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>(MOCK_APPOINTMENTS)
   const [view, setView] = useState<'table' | 'calendar'>('table')
   const [showNewAppointment, setShowNewAppointment] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | undefined>()
+  const [calendarView, setCalendarView] = useState<View>('day')
+  const [calendarDate, setCalendarDate] = useState(new Date())
   const [filters, setFilters] = useState<FilterState>({
     dateRange: { start: null, end: null },
     professional: null,
@@ -112,7 +115,6 @@ export default function AppointmentsPage() {
     sortBy: 'date',
     sortOrder: 'asc'
   })
-  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | undefined>()
 
   // Converter agendamentos para eventos do calendário
   const calendarEvents = appointments.map(appt => ({
@@ -132,7 +134,7 @@ export default function AppointmentsPage() {
     setSelectedAppointment(appointment)
     setShowNewAppointment(true)
   }
-
+  
   const handleSubmitAppointment = (data: Partial<Appointment>) => {
     // Implementar lógica de criação/edição
     console.log('Dados do agendamento:', data)
@@ -169,6 +171,130 @@ export default function AppointmentsPage() {
       timeStyle: 'short' 
     })
   }
+
+  // Handlers para ações do calendário
+  const handleCalendarNavigate = useCallback((newDate: Date, view: View) => {
+    setCalendarDate(newDate)
+    setCalendarView(view)
+  }, [])
+
+  const handleCalendarViewChange = useCallback((view: View) => {
+    setCalendarView(view)
+  }, [])
+
+  const handleSelectEvent = useCallback((event: any) => {
+    // Quando clicar em um evento no calendário, editar o agendamento
+    const appointment = event.resource as Appointment
+    if (appointment) {
+      handleEditAppointment(appointment)
+    }
+  }, [])
+
+  const renderTableView = () => (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Data/Hora</TableHead>
+          <TableHead>Cliente</TableHead>
+          <TableHead className="hidden md:table-cell">Serviço</TableHead>
+          <TableHead className="hidden sm:table-cell">Profissional</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead className="text-right">Ações</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {appointments.length > 0 ? appointments.map((appt) => (
+          <TableRow key={appt.id}>
+            <TableCell className="font-medium">{formatDateTime(appt.start_time)}</TableCell>
+            <TableCell>{MOCK_CLIENTS_MAP[appt.client_id]?.name || 'Desconhecido'}</TableCell>
+            <TableCell className="hidden md:table-cell">{MOCK_SERVICES_MAP[appt.service_id]?.name || 'Desconhecido'}</TableCell>
+            <TableCell className="hidden sm:table-cell">{MOCK_PROFESSIONALS_MAP[appt.professional_id]?.name || 'Desconhecido'}</TableCell>
+            <TableCell>
+              <Badge variant={getStatusBadgeVariant(appt.status)}>
+                {formatStatus(appt.status)}
+              </Badge>
+            </TableCell>
+            <TableCell className="text-right space-x-2">
+              <Button variant="outline" size="icon" onClick={() => handleEditAppointment(appt)}>
+                <Edit className="h-4 w-4" />
+                <span className="sr-only">Editar</span>
+              </Button>
+              {/* Adicionar outras ações como cancelar, confirmar, etc. */}
+            </TableCell>
+          </TableRow>
+        )) : (
+          <TableRow>
+            <TableCell colSpan={6} className="h-24 text-center">
+              Nenhum agendamento encontrado.
+            </TableCell>
+          </TableRow>
+        )}
+      </TableBody>
+    </Table>
+  )
+
+  const renderCalendarView = () => (
+    <div className="h-[600px] max-w-full">
+      <Calendar
+        localizer={localizer}
+        events={calendarEvents}
+        startAccessor="start"
+        endAccessor="end"
+        view={calendarView}
+        date={calendarDate}
+        onNavigate={handleCalendarNavigate}
+        onView={handleCalendarViewChange}
+        onSelectEvent={handleSelectEvent}
+        views={['day', 'week', 'month']}
+        messages={{
+          next: "Próximo",
+          previous: "Anterior",
+          today: "Hoje",
+          month: "Mês",
+          week: "Semana",
+          day: "Dia"
+        }}
+        culture="pt-BR"
+        popup
+        className="rounded-md bg-background"
+        dayPropGetter={(date) => {
+          const today = new Date()
+          return {
+            className: format(date, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd') ? 'rbc-today' : ''
+          }
+        }}
+        eventPropGetter={(event) => {
+          const appointment = event.resource as Appointment
+          // Personalizar cores com base no status
+          let backgroundColor = 'var(--primary)'
+          
+          if (appointment) {
+            switch (appointment.status) {
+              case AppointmentStatus.CONFIRMED:
+                backgroundColor = 'var(--chart-2)'; // Verde
+                break;
+              case AppointmentStatus.SCHEDULED:
+                backgroundColor = 'var(--chart-4)'; // Amarelo
+                break;
+              case AppointmentStatus.CANCELLED_BY_CLIENT:
+              case AppointmentStatus.CANCELLED_BY_SALON:
+                backgroundColor = 'var(--destructive)'; // Vermelho
+                break;
+              case AppointmentStatus.COMPLETED:
+                backgroundColor = 'var(--chart-3)'; // Azul
+                break;
+              default:
+                break;
+            }
+          }
+          
+          return {
+            style: { backgroundColor }
+          }
+        }}
+      />
+    </div>
+  )
 
   return (
     <>
@@ -221,6 +347,7 @@ export default function AppointmentsPage() {
               </Button>
             </div>
           </div>
+          
           <Tabs value={view} onValueChange={(v) => setView(v as 'table' | 'calendar')} className="mt-6">
             <TabsList>
               <TabsTrigger value="table">
@@ -235,69 +362,7 @@ export default function AppointmentsPage() {
           </Tabs>
         </CardHeader>
         <CardContent>
-          <TabsContent value="table" className="m-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Data/Hora</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead className="hidden md:table-cell">Serviço</TableHead>
-                  <TableHead className="hidden sm:table-cell">Profissional</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                 {appointments.length > 0 ? appointments.map((appt) => (
-                  <TableRow key={appt.id}>
-                    <TableCell className="font-medium">{formatDateTime(appt.start_time)}</TableCell>
-                    <TableCell>{MOCK_CLIENTS_MAP[appt.client_id]?.name || 'Desconhecido'}</TableCell>
-                    <TableCell className="hidden md:table-cell">{MOCK_SERVICES_MAP[appt.service_id]?.name || 'Desconhecido'}</TableCell>
-                    <TableCell className="hidden sm:table-cell">{MOCK_PROFESSIONALS_MAP[appt.professional_id]?.name || 'Desconhecido'}</TableCell>
-                    <TableCell>
-                       <Badge variant={getStatusBadgeVariant(appt.status)}>
-                         {formatStatus(appt.status)}
-                       </Badge>
-                    </TableCell>
-                    <TableCell className="text-right space-x-2">
-                       <Button variant="outline" size="icon" onClick={() => handleEditAppointment(appt)}>
-                        <Edit className="h-4 w-4" />
-                        <span className="sr-only">Editar</span>
-                      </Button>
-                      {/* Adicionar outras ações como cancelar, confirmar, etc. */}
-                    </TableCell>
-                  </TableRow>
-                )) : (
-                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">
-                      Nenhum agendamento encontrado.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TabsContent>
-          <TabsContent value="calendar" className="m-0">
-            <div className="h-[600px]">
-              <Calendar
-                localizer={localizer}
-                events={calendarEvents}
-                startAccessor="start"
-                endAccessor="end"
-                defaultView="day"
-                views={['day', 'week', 'month']}
-                messages={{
-                  next: "Próximo",
-                  previous: "Anterior",
-                  today: "Hoje",
-                  month: "Mês",
-                  week: "Semana",
-                  day: "Dia"
-                }}
-                culture="pt-BR"
-              />
-            </div>
-          </TabsContent>
+          {view === 'table' ? renderTableView() : renderCalendarView()}
         </CardContent>
       </Card>
 

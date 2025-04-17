@@ -98,19 +98,25 @@
 
 /* Estilos personalizados para o calendário */
 .rbc-calendar {
-  @apply font-sans;
+  @apply font-sans border-none;
+  width: 100%;
+  max-width: 100%;
 }
 
-.rbc-event {
-  @apply bg-primary text-primary-foreground rounded-md border-none;
+.rbc-toolbar {
+  @apply flex flex-wrap justify-between mb-4;
 }
 
-.rbc-day-slot .rbc-event {
-  @apply rounded-md border-l-4 border-solid border-primary-foreground;
+.rbc-toolbar-label {
+  @apply text-base font-medium;
 }
 
-.rbc-today {
-  @apply bg-secondary/50;
+.rbc-toolbar button {
+  @apply rounded-md bg-background border border-input px-3 py-2 text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+}
+
+.rbc-btn-group {
+  @apply flex flex-wrap gap-1;
 }
 
 .rbc-toolbar button.rbc-active {
@@ -119,4 +125,74 @@
 
 .rbc-toolbar button:hover {
   @apply bg-secondary;
+}
+
+.rbc-event {
+  @apply bg-primary text-primary-foreground rounded-md border-none text-sm;
+  padding: 2px 5px;
+}
+
+.rbc-day-slot .rbc-event {
+  @apply rounded-md border-l-4 border-solid border-primary-foreground;
+}
+
+.rbc-today {
+  @apply bg-secondary/40;
+}
+
+/* Responsividade para telas pequenas */
+@media (max-width: 640px) {
+  .rbc-toolbar {
+    @apply flex-col items-center gap-3;
+  }
+
+  .rbc-toolbar-label {
+    @apply mb-2 text-center w-full;
+  }
+
+  .rbc-btn-group {
+    @apply justify-center;
+  }
+
+  .rbc-time-view .rbc-header {
+    @apply text-xs;
+  }
+
+  .rbc-event {
+    @apply text-xs;
+  }
+
+  .rbc-agenda-view table.rbc-agenda-table {
+    @apply text-xs;
+  }
+}
+
+/* Ajustes para o tema escuro */
+.dark .rbc-off-range-bg {
+  @apply bg-muted/20;
+}
+
+.dark .rbc-today {
+  @apply bg-muted;
+}
+
+.dark .rbc-toolbar button {
+  @apply border-muted-foreground/10;
+}
+
+/* Cores personalizadas para diferentes tipos de eventos */
+.rbc-event.confirmed {
+  @apply bg-primary;
+}
+
+.rbc-event.scheduled {
+  @apply bg-amber-500;
+}
+
+.rbc-event.cancelled {
+  @apply bg-destructive;
+}
+
+.rbc-event.completed {
+  @apply bg-green-600;
 } 
