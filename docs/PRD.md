@@ -4,6 +4,17 @@
 
 Sistema SaaS para gestão de salões de beleza, focado em agendamentos e gestão de clientes.
 
+## Status Atual do Desenvolvimento
+
+- **Backend**: Estrutura básica em NestJS implementada, com os seguintes módulos:
+  - Admin: Painel administrativo, métricas e saúde da API
+  - Prisma: Configuração ORM para acesso ao banco de dados
+  - Prisma-Admin: Interface de administração visual para banco de dados
+  - Users: Estrutura básica para gestão de usuários (em desenvolvimento)
+  - Auth: Módulo de autenticação (em desenvolvimento)
+- **Frontend**: Estrutura em Next.js 14 com App Router
+- **Pendente**: Implementação dos demais módulos (salons, professionals, services, appointments, clients)
+
 ## Objetivos
 
 1. Simplificar o processo de agendamento
@@ -134,11 +145,13 @@ Sistema SaaS para gestão de salões de beleza, focado em agendamentos e gestão
 
 ### Backend
 
-- NestJS
+- NestJS 11
 - Prisma ORM
 - PostgreSQL
 - Redis (cache)
 - JWT + RBAC
+- Swagger para documentação da API
+- PrismaAdmin para gerenciamento visual do banco de dados
 
 ### Infraestrutura
 
@@ -151,6 +164,14 @@ Sistema SaaS para gestão de salões de beleza, focado em agendamentos e gestão
 ### Fase 1 - Base (4 semanas)
 
 1. Setup inicial com Next.js e autenticação
+
+- [x] Setup básico do backend NestJS
+- [x] Configuração do Prisma ORM
+- [x] Implementação do módulo Admin
+- [x] Interface PrismaAdmin
+- [ ] Finalizar módulo de Usuários
+- [ ] Finalizar módulo de Autenticação
+
 2. Implementação do RBAC
 3. Layout base responsivo
 4. Componentes core

@@ -11,11 +11,17 @@ export interface LoginData {
   password: string
 }
 
+export interface SalonInfo {
+  id: string
+  name: string
+  role: string
+}
+
 export interface User {
   id: string
   email: string
   name: string
-  role: UserRole
+  role: UserRole | string
   avatar_url?: string
   created_at?: string
   updated_at?: string
@@ -23,6 +29,7 @@ export interface User {
   is_active?: boolean
   permissions?: string[]
   salon_id?: string // ID do salão associado (para SALON_OWNER, PROFESSIONAL e RECEPTIONIST)
+  salon?: SalonInfo // Informações básicas do salão associado
 }
 
 export interface AuthResponse {
@@ -31,7 +38,7 @@ export interface AuthResponse {
 }
 
 // Permissões específicas para cada role
-export const RolePermissions: Record<UserRole, string[]> = {
+export const RolePermissions: Record<string, string[]> = {
   SUPERUSER: [
     'manage:all',
     'manage:admins',

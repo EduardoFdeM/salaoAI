@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prisma Admin - Editar {{modelName}}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container">
+      <a class="navbar-brand" href="/prisma-admin">Prisma Admin</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item">
+            <a class="nav-link" href="/prisma-admin">Modelos</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/api/docs">API Docs</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/admin/dashboard">Dashboard</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h1>Editar {{modelName}}</h1>
+      <div>
+        <a href="/prisma-admin/model/{{modelName}}" class="btn btn-secondary me-2">Voltar para Lista</a>
+        <a href="/prisma-admin" class="btn btn-outline-secondary">Todos os Modelos</a>
+      </div>
+    </div>
+    
+    <div class="card mb-4">
+      <div class="card-body">
+        <form id="editForm">
+          <div class="row">
+            {{#each fields}}
+              <div class="col-md-6 mb-3">
+                <label for="field-{{name}}" class="form-label">
+                  {{name}}
+                  {{#if isId}}
+                    <span class="badge bg-primary">ID</span>
+                  {{/if}}
+                  {{#if isRequired}}
+                    <span class="badge bg-danger">Obrigatório</span>
+                  {{/if}}
+                </label>
+
+                {{#if isId}}
+                  <input type="text" class="form-control" id="field-{{name}}" name="{{name}}" value="{{lookup ../record name}}" readonly>
+                {{else if (isJsonField type)}}
+                  <textarea class="form-control" id="field-{{name}}" name="{{name}}" rows="5">{{lookup ../record name}}</textarea>
+                {{else if (isTextField type)}}
+                  <textarea class="form-control" id="field-{{name}}" name="{{name}}" rows="3">{{lookup ../record name}}</textarea>
+                {{else if (isDateField type)}}
+                  <input type="datetime-local" class="form-control" id="field-{{name}}" name="{{name}}" value="{{formatDateInput (lookup ../record name)}}">
+                {{else if (isBooleanField type)}}
+                  <select class="form-select" id="field-{{name}}" name="{{name}}">
+                    <option value="true" {{#if (lookup ../record name)}}selected{{/if}}>Sim</option>
+                    <option value="false" {{#unless (lookup ../record name)}}selected{{/unless}}>Não</option>
+                  </select>
+                {{else}}
+                  <input type="text" class="form-control" id="field-{{name}}" name="{{name}}" value="{{lookup ../record name}}">
+                {{/if}}
+                
+                <small class="text-muted">Tipo: {{type}}</small>
+              </div>
+            {{/each}}
+          </div>
+
+          <div class="d-flex justify-content-end mt-4">
+            <button type="submit" class="btn btn-success">Salvar Alterações</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    $(document).ready(function() {
+      $('#editForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = {};
+        const formElements = $(this).serializeArray();
+        
+        formElements.forEach(element => {
+          formData[element.name] = element.value;
+        });
+        
+        $.ajax({
+          url: window.location.pathname,
+          method: 'POST',
+          contentType: 'application/json',
+          data: JSON.stringify(formData),
+          success: function(response) {
+            alert('Registro atualizado com sucesso!');
+            window.location.href = '/prisma-admin/model/{{modelName}}';
+          },
+          error: function(error) {
+            alert('Erro ao atualizar registro: ' + error.responseText);
+          }
+        });
+      });
+    });
+  </script>
+</body>
+</html> 

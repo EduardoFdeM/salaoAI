@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/auth-context'
 import { UserRole } from '@/types/auth'
 import DashboardLayout from '@/components/layout/dashboard-layout'
+import { SalonProvider } from '@/contexts/salon-context'
 
 export default function SalonLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -36,6 +37,10 @@ export default function SalonLayout({ children }: { children: React.ReactNode })
     return null 
   }
 
-  // Renderiza o layout do dashboard para usuários autorizados
-  return <DashboardLayout>{children}</DashboardLayout>
+  // Renderiza o layout do dashboard para usuários autorizados com o SalonProvider
+  return (
+    <SalonProvider>
+      <DashboardLayout>{children}</DashboardLayout>
+    </SalonProvider>
+  )
 } 

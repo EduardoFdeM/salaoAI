@@ -1,0 +1,430 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Modelo de Usuários
+model User {
+  id           String    @id @default(uuid())
+  name         String
+  email        String    @unique
+  phone        String    @unique
+  passwordHash String    @map("password_hash")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  active       Boolean   @default(true)
+
+  // Relações
+  salonUsers        SalonUser[]
+  appointmentHistory AppointmentHistory[] @relation("ChangedByUser")
+  reports            Report[]              @relation("CreatedByUser")
+
+  @@map("users")
+}
+
+// Modelo de Salões
+model Salon {
+  id                   String   @id @default(uuid())
+  name                 String
+  address              String
+  phone                String
+  email                String
+  logoUrl              String?  @map("logo_url")
+  businessHours        Json     @map("business_hours") // Usando Json nativo
+  notificationSettings Json     @map("notification_settings") // Usando Json nativo
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+  active               Boolean  @default(true)
+
+  // Relações
+  salonUsers         SalonUser[]
+  services           Service[]
+  clients            Client[]
+  appointments       Appointment[]
+  salonSubscriptions SalonSubscription[]
+  webhooks           Webhook[]
+  salonSettings      SalonSetting[]
+  reports            Report[]
+  chatbotConversations ChatbotConversation[]
+  payments           Payment[]
+
+  @@map("salons")
+}
+
+// Modelo de Usuários do Salão (relacionamento entre User e Salon)
+model SalonUser {
+  id            String   @id @default(uuid())
+  userId        String   @map("user_id")
+  salonId       String   @map("salon_id")
+  role          Role     // Enum: 'owner', 'professional', 'receptionist'
+  workingHours  Json?    @map("working_hours") // Usando Json nativo
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  active        Boolean  @default(true)
+
+  // Relações
+  user                User                  @relation(fields: [userId], references: [id])
+  salon               Salon                 @relation(fields: [salonId], references: [id])
+  professionalServices ProfessionalService[]
+  appointments        Appointment[]         @relation("Professional")
+
+  @@unique([salonId, userId])
+  @@index([salonId, role])
+  @@map("salon_users")
+}
+
+// Modelo de Serviços
+model Service {
+  id          String   @id @default(uuid())
+  salonId     String   @map("salon_id")
+  name        String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  active      Boolean  @default(true)
+
+  // Relações
+  salon               Salon                 @relation(fields: [salonId], references: [id])
+  professionalServices ProfessionalService[]
+  appointments        Appointment[]
+
+  @@map("services")
+}
+
+// Modelo de Serviços de Profissionais
+model ProfessionalService {
+  id              String   @id @default(uuid())
+  professionalId  String   @map("professional_id")
+  serviceId       String   @map("service_id")
+  price           Float    // Usando Float para compatibilidade com SQLite
+  durationMinutes Int      @map("duration_minutes")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  active          Boolean  @default(true)
+
+  // Relações
+  professional    SalonUser @relation(fields: [professionalId], references: [id])
+  service         Service   @relation(fields: [serviceId], references: [id])
+
+  @@unique([professionalId, serviceId])
+  @@map("professional_services")
+}
+
+// Modelo de Clientes
+model Client {
+  id        String   @id @default(uuid())
+  salonId   String   @map("salon_id")
+  name      String
+  phone     String
+  email     String?
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relações
+  salon      Salon        @relation(fields: [salonId], references: [id])
+  appointments Appointment[]
+  chatbotConversations ChatbotConversation[]
+
+  @@index([salonId, phone])
+  @@map("clients")
+}
+
+// Modelo de Agendamentos
+model Appointment {
+  id             String           @id @default(uuid())
+  salonId        String           @map("salon_id")
+  clientId       String           @map("client_id")
+  professionalId String           @map("professional_id")
+  serviceId      String           @map("service_id")
+  startTime      DateTime         @map("start_time")
+  endTime        DateTime         @map("end_time")
+  status         AppointmentStatus
+  price          Float            // Usando Float para compatibilidade com SQLite
+  notes          String?
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  // Relações
+  salon               Salon                 @relation(fields: [salonId], references: [id])
+  client              Client                @relation(fields: [clientId], references: [id])
+  professional        SalonUser             @relation("Professional", fields: [professionalId], references: [id])
+  service             Service               @relation(fields: [serviceId], references: [id])
+  appointmentHistory  AppointmentHistory[]
+
+  @@index([salonId, startTime])
+  @@index([professionalId, startTime])
+  @@map("appointments")
+}
+
+// Modelo de Histórico de Agendamentos
+model AppointmentHistory {
+  id              String   @id @default(uuid())
+  appointmentId   String   @map("appointment_id")
+  status          AppointmentStatus
+  notes           String?
+  changedByUserId String   @map("changed_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  // Relações
+  appointment     Appointment @relation(fields: [appointmentId], references: [id])
+  changedByUser   User        @relation("ChangedByUser", fields: [changedByUserId], references: [id])
+
+  @@map("appointment_history")
+}
+
+// Modelo de Conversas com Chatbot
+model ChatbotConversation {
+  id        String             @id @default(uuid())
+  clientId  String             @map("client_id")
+  salonId   String             @map("salon_id")
+  startTime DateTime           @map("start_time")
+  endTime   DateTime?          @map("end_time")
+  status    ChatbotStatus
+  source    ChatbotSource
+  createdAt DateTime           @default(now()) @map("created_at")
+  updatedAt DateTime           @updatedAt @map("updated_at")
+
+  // Relações
+  client   Client            @relation(fields: [clientId], references: [id])
+  salon    Salon             @relation(fields: [salonId], references: [id])
+  messages ChatbotMessage[]
+
+  @@index([salonId, clientId])
+  @@index([salonId, status])
+  @@map("chatbot_conversations")
+}
+
+// Modelo de Mensagens de Chatbot
+model ChatbotMessage {
+  id             String   @id @default(uuid())
+  conversationId String   @map("conversation_id")
+  senderType     SenderType
+  content        String
+  timestamp      DateTime
+  intent         String?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  // Relações
+  conversation ChatbotConversation @relation(fields: [conversationId], references: [id])
+
+  @@index([conversationId, timestamp])
+  @@map("chatbot_messages")
+}
+
+// Modelo de Webhooks
+model Webhook {
+  id         String   @id @default(uuid())
+  salonId    String   @map("salon_id")
+  name       String
+  eventType  String   @map("event_type")
+  targetUrl  String   @map("target_url")
+  headers    Json?    // Usando Json nativo
+  active     Boolean  @default(true)
+  secretKey  String   @map("secret_key")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // Relações
+  salon      Salon             @relation(fields: [salonId], references: [id])
+  deliveries WebhookDelivery[]
+
+  @@index([salonId, eventType])
+  @@map("webhooks")
+}
+
+// Modelo de Entregas de Webhook
+model WebhookDelivery {
+  id            String   @id @default(uuid())
+  webhookId     String   @map("webhook_id")
+  eventId       String   @map("event_id")
+  payload       String   // JSON como String para SQLite
+  responseCode  Int?     @map("response_code")
+  responseBody  String?  @map("response_body")
+  status        WebhookDeliveryStatus
+  attempts      Int      @default(0)
+  lastAttemptAt DateTime? @map("last_attempt_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  // Relações
+  webhook Webhook @relation(fields: [webhookId], references: [id])
+
+  @@map("webhook_deliveries")
+}
+
+// Modelo de Planos de Assinatura
+model SubscriptionPlan {
+  id           String   @id @default(uuid())
+  name         String
+  description  String?
+  features     String   // JSON como String para SQLite
+  price        Float    // Usando Float para compatibilidade com SQLite
+  billingCycle BillingCycle @map("billing_cycle")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relações
+  salonSubscriptions SalonSubscription[]
+
+  @@map("subscription_plans")
+}
+
+// Modelo de Assinaturas de Salão
+model SalonSubscription {
+  id            String             @id @default(uuid())
+  salonId       String             @map("salon_id")
+  planId        String             @map("plan_id")
+  status        SubscriptionStatus
+  startDate     DateTime           @map("start_date")
+  endDate       DateTime?          @map("end_date")
+  trialEndDate  DateTime?          @map("trial_end_date")
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+
+  // Relações
+  salon    Salon           @relation(fields: [salonId], references: [id])
+  plan     SubscriptionPlan @relation(fields: [planId], references: [id])
+  payments Payment[]
+
+  @@index([salonId, status])
+  @@map("salon_subscriptions")
+}
+
+// Modelo de Pagamentos
+model Payment {
+  id              String         @id @default(uuid())
+  salonId         String         @map("salon_id")
+  subscriptionId  String?        @map("subscription_id")
+  amount          Float          // Usando Float para compatibilidade com SQLite
+  status          PaymentStatus
+  paymentMethod   String         @map("payment_method")
+  transactionId   String?        @map("transaction_id")
+  notes           String?
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  // Relações
+  salon        Salon             @relation(fields: [salonId], references: [id])
+  subscription SalonSubscription? @relation(fields: [subscriptionId], references: [id])
+
+  @@index([salonId, status])
+  @@index([subscriptionId])
+  @@map("payments")
+}
+
+// Modelo de Configurações de Salão
+model SalonSetting {
+  id        String   @id @default(uuid())
+  salonId   String   @map("salon_id")
+  key       String
+  value     String   
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relações
+  salon Salon @relation(fields: [salonId], references: [id])
+
+  @@unique([salonId, key])
+  @@map("salon_settings")
+}
+
+// Modelo de Relatórios
+model Report {
+  id             String       @id @default(uuid())
+  salonId        String       @map("salon_id")
+  title          String
+  type           ReportType
+  parameters     String       // JSON como String para SQLite
+  resultUrl      String?      @map("result_url")
+  status         ReportStatus
+  createdByUserId String      @map("created_by_user_id")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  // Relações
+  salon     Salon @relation(fields: [salonId], references: [id])
+  createdBy User  @relation("CreatedByUser", fields: [createdByUserId], references: [id])
+
+  @@map("reports")
+}
+
+// Enums
+enum Role {
+  OWNER
+  PROFESSIONAL
+  RECEPTIONIST
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum ChatbotStatus {
+  ACTIVE
+  COMPLETED
+  FAILED
+}
+
+enum ChatbotSource {
+  WHATSAPP
+  WEBSITE
+  APP
+}
+
+enum SenderType {
+  CLIENT
+  BOT
+}
+
+enum WebhookDeliveryStatus {
+  SUCCESS
+  FAILED
+  PENDING
+}
+
+enum BillingCycle {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  PAST_DUE
+  TRIALING
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum ReportType {
+  FINANCIAL
+  APPOINTMENTS
+  CLIENTS
+  PROFESSIONALS
+}
+
+enum ReportStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}

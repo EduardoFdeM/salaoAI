@@ -1,10 +1,13 @@
 "use client"
 
 import { useAuth } from '@/contexts/auth-context'
+import { useSalon } from '@/contexts/salon-context'
 import { UserRole } from '@/types/auth'
 
 export default function SalonDashboard() {
   const { user } = useAuth()
+  const { salon, loading: salonLoading } = useSalon()
+  
   const isReceptionist = user?.role === UserRole.RECEPTIONIST
 
   return (
@@ -12,6 +15,21 @@ export default function SalonDashboard() {
       <h1 className="text-2xl font-bold mb-6">
         {isReceptionist ? "Dashboard da Recepção" : "Dashboard do Salão"}
       </h1>
+      
+      {salonLoading ? (
+        <div className="flex items-center justify-center h-20">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-600"></div>
+        </div>
+      ) : salon ? (
+        <div className="bg-white p-4 rounded-lg shadow-sm mb-6">
+          <h2 className="font-semibold text-lg mb-2">{salon.name}</h2>
+          <p className="text-gray-600">Perfil: {salon.role === 'OWNER' ? 'Dono do Salão' : 'Recepcionista'}</p>
+        </div>
+      ) : (
+        <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg mb-6">
+          <p className="text-amber-800">Seu usuário não está associado a nenhum salão.</p>
+        </div>
+      )}
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Resumo de Agendamentos - comum para ambos */}

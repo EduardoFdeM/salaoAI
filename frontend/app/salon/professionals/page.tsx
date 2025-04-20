@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/auth-context'
+import { useSalon } from '@/contexts/salon-context'
 import Image from 'next/image'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Grid, List, UserPlus, Mail, Search } from 'lucide-react'
+import { Grid, List, UserPlus, Mail, Search, PlusIcon, PencilIcon, TrashIcon, CheckCircleIcon, XCircleIcon } from 'lucide-react'
 
 interface Service {
   id: string
@@ -27,7 +28,8 @@ interface Professional {
   active: boolean
 }
 
-export default function ProfessionalsPage() {
+export default function SalonProfessionalsPage() {
+  const { salon, loading: salonLoading } = useSalon()
   const [professionals, setProfessionals] = useState<Professional[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -54,12 +56,12 @@ export default function ProfessionalsPage() {
   const mockProfessionals: Professional[] = [
     {
       id: '1',
-      name: 'Ana Silva',
-      email: 'ana.silva@exemplo.com',
+      name: 'Amanda Silva',
+      email: 'amanda.silva@exemplo.com',
       phone: '(11) 98765-4321',
       role: 'Cabeleireira',
-      specialties: [mockServices[1], mockServices[2], mockServices[4]],
-      bio: 'Especialista em cortes femininos e coloração. Mais de 10 anos de experiência no mercado.',
+      specialties: [mockServices[1], mockServices[2]],
+      bio: 'Especialista em cortes femininos e coloração. Mais de 8 anos de experiência.',
       imageUrl: 'https://randomuser.me/api/portraits/women/44.jpg',
       active: true
     },
@@ -67,44 +69,33 @@ export default function ProfessionalsPage() {
       id: '2',
       name: 'Carlos Oliveira',
       email: 'carlos.oliveira@exemplo.com',
-      phone: '(11) 97654-3210',
+      phone: '(11) 91234-5678',
       role: 'Barbeiro',
       specialties: [mockServices[0], mockServices[3]],
-      bio: 'Barbeiro tradicional com técnicas modernas. Especializado em cortes masculinos e barba.',
+      bio: 'Barbeiro profissional com técnicas tradicionais e modernas.',
       imageUrl: 'https://randomuser.me/api/portraits/men/32.jpg',
       active: true
     },
     {
       id: '3',
-      name: 'Mariana Costa',
-      email: 'mariana.costa@exemplo.com',
-      phone: '(11) 96543-2109',
-      role: 'Colorista',
-      specialties: [mockServices[1], mockServices[2]],
-      bio: 'Especialista em coloração e técnicas de mechas. Formada pela Academia L\'Oréal.',
+      name: 'Juliana Costa',
+      email: 'juliana.costa@exemplo.com',
+      phone: '(11) 99876-5432',
+      role: 'Manicure',
+      specialties: [mockServices[5], mockServices[6]],
+      bio: 'Especialista em unhas. Certificada em técnicas de nail art.',
       imageUrl: 'https://randomuser.me/api/portraits/women/68.jpg',
       active: true
     },
     {
       id: '4',
-      name: 'Paulo Santos',
-      email: 'paulo.santos@exemplo.com',
-      phone: '(11) 95432-1098',
+      name: 'Marcelo Santos',
+      email: 'marcelo.santos@exemplo.com',
+      phone: '(11) 98765-1234',
       role: 'Cabeleireiro',
-      specialties: [mockServices[0], mockServices[1], mockServices[4]],
-      bio: 'Profissional versátil com experiência em cortes femininos e masculinos.',
+      specialties: [mockServices[0], mockServices[1]],
+      bio: 'Cabeleireiro com experiência internacional. Especializado em técnicas avançadas de coloração.',
       imageUrl: 'https://randomuser.me/api/portraits/men/75.jpg',
-      active: true
-    },
-    {
-      id: '5',
-      name: 'Camila Pereira',
-      email: 'camila.pereira@exemplo.com',
-      phone: '(11) 94321-0987',
-      role: 'Manicure',
-      specialties: [mockServices[5], mockServices[6]],
-      bio: 'Especialista em unhas. Certificada em técnicas de nail art e esmaltação em gel.',
-      imageUrl: 'https://randomuser.me/api/portraits/women/33.jpg',
       active: false
     }
   ]
@@ -192,6 +183,22 @@ export default function ProfessionalsPage() {
 
   const getSpecialtiesList = (specialties: Service[]) => {
     return specialties.map(s => s.name).join(', ')
+  }
+
+  if (salonLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
+      </div>
+    )
+  }
+
+  if (!salon) {
+    return (
+      <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg">
+        <p className="text-amber-800">Seu usuário não está associado a nenhum salão.</p>
+      </div>
+    )
   }
 
   return (

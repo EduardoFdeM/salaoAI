@@ -1,50 +1,99 @@
 # Agendamento-Cabelereiros
+
+## Estrutura do Repositório
+
+```bash
+.
+├── backend/
+│   ├── src/
+│   │   ├── admin/
+│   │   ├── auth/
+│   │   ├── appointments/
+│   │   ├── clients/
+│   │   ├── prisma/
+│   │   ├── prisma-admin/
+│   │   ├── salons/
+│   │   ├── services/
+│   │   ├── professionals/
+│   │   ├── users/
+│   │   ├── app.module.ts
+│   │   └── main.ts
+│   ├── dist/
+│   ├── node_modules/
+│   ├── package.json
+│   ├── tsconfig.json
+│   ├── tsconfig.build.json
+│   └── nest-cli.json
+├── frontend/
+│   ├── app/
+│   │   ├── api/
+│   │   ├── admin/
+│   │   ├── salon/
+│   │   ├── professional/
+│   │   └── login/
+│   ├── components/
+│   ├── contexts/
+│   ├── lib/
+│   ├── hooks/
+│   ├── types/
+│   ├── middleware.ts
+│   ├── next.config.js
+│   ├── tailwind.config.ts
+│   ├── postcss.config.js
+│   ├── tsconfig.json
+│   ├── tsconfig.app.json
+│   ├── eslint.config.js
+│   ├── next-env.d.ts
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── node_modules/
+│   ├── .next/
+│   └── .gitignore
+├── docs/
+│   ├── database-structure.md
+│   ├── next-steps.md
+│   ├── PRD.md
+│   ├── access-profiles.md
+│   └── user-flows.md
+├── ngrok.yml
+└── README.md
+```
+
 Sistema de agendamento e gerenciamento para salões de cabeleireiros e barbearias
 
 ## Descrição e Funcionalidades:
 
-* Atendimento conversacional via whatsapp via texto e áudio 
+- Atendimento conversacional via whatsapp via texto e áudio
 
+- Site landing page vendas
 
-* Site landing page vendas
+- Site acesso painel de controle estabelecimento
 
+- Sistema de assinatura mensal
 
-* Site acesso painel de controle estabelecimento 
+- Pagamento cartão de crédito (PIX posterior)
 
+- Preenchimento via formulário personalizado do Onboarding após venda da assinatura, dados preenchidos vão alimentar banco de dados com informações do estabelecimento: informações gerais estabelecimento (para bot básico), endereço, horário de funcionamento, profissionais, serviços, tempo de cada serviço, valor de cada serviço, conexão profissional X serviço.
 
-* Sistema de assinatura mensal 
+- Agendamento de horários de acordo com serviços
 
+- Calendário criado para cada estabelecimento
 
-* Pagamento cartão de crédito (PIX posterior)
+- Cliente pode agendar, alterar ou cancelar horário
 
+- Acesso para visualizar calendário diário, semanal, mensal via link, abre no navegador
 
-* Preenchimento via formulário personalizado do Onboarding após venda da assinatura, dados preenchidos vão alimentar banco de dados com informações do estabelecimento: informações gerais estabelecimento (para bot básico), endereço, horário de funcionamento, profissionais, serviços, tempo de cada serviço, valor de cada serviço, conexão profissional X serviço.
+- Envio de mensagens de confirmação de reserva
 
+- Dados dos clientes serão armazenados em banco de dados (nome, número de WhatsApp, histórico de agendamentos simplificado, profissional, serviço)
 
-* Agendamento de horários de acordo com serviços 
+- Análise de frequência X serviço do cliente para envio de mensagem para preenchimento de agenda
 
+- WhatsApp cliente X WhatsApp Adm X WhatsApp profissionais:
+  WhatsApp cliente: somente consultas e agendamentos
+  WhatsApp Profissionais: pode consultar própria agenda de clientes (via link de agenda) e alterar agendamentos através de conversa natural
+  WhatsApp Adm: Pode realizar consultas de todos os agendamentos geral estabelecimento, realizar alterações e cancelamentos
 
-* Calendário criado para cada estabelecimento 
-
-
-* Cliente pode agendar, alterar ou cancelar horário
-
-
-* Acesso para visualizar calendário diário, semanal, mensal via link, abre no navegador 
-
-
-* Envio de mensagens de confirmação de reserva 
-
-
-* Dados dos clientes serão armazenados em banco de dados (nome, número de WhatsApp, histórico de agendamentos simplificado, profissional, serviço)
-
-
-* Análise de frequência X serviço do cliente para envio de mensagem para preenchimento de agenda
-
-* WhatsApp cliente X WhatsApp Adm X WhatsApp profissionais: 
-    WhatsApp cliente: somente consultas e agendamentos 
-    WhatsApp Profissionais: pode consultar própria agenda de clientes (via link de agenda) e alterar agendamentos através de conversa natural
-    WhatsApp Adm: Pode realizar consultas de todos os agendamentos geral estabelecimento, realizar alterações e cancelamentos
 # Sistema de Gerenciamento de Salões de Cabeleireiro com IA
 
 ## Visão Geral
@@ -88,6 +137,13 @@ Este sistema oferece uma solução completa para gerenciamento de salões de cab
 O projeto está passando por uma modernização, com as seguintes características:
 
 - **Frontend**: Completamente renovado usando React, TypeScript, e Vite
+- **Backend**: Estrutura inicial em NestJS com os seguintes componentes implementados:
+  - **Admin**: Módulo de administração do sistema com métricas básicas
+  - **Prisma**: Configuração ORM para acesso ao banco de dados
+  - **Prisma-Admin**: Interface administrativa para visualização e edição do banco
+- **Em desenvolvimento**:
+  - Módulos de Autenticação e Usuários
+  - Módulos de domínio (Salões, Profissionais, Serviços, Agendamentos, Clientes)
 
 ## Componentes do Sistema
 
@@ -199,12 +255,55 @@ Para testar o sistema, utilize as seguintes credenciais:
 - Role: RECEPTIONIST
 - Permissões: Gerenciamento de agendamentos e clientes
 
+
+Usuários administrativos:
+- Superusuário: superuser@example.com / superuser123
+- Administrador: admin@example.com / admin123
+- Dono Genérico: salon@example.com / salon123
+- Profissional Genérico: professional@example.com / professional123
+- Recepcionista Genérico: receptionist@example.com / receptionist123
+----------------------------
+Usuários do salão:
+- Dono: maria@belezatotal.com / senha123
+- Profissional 1: ana@belezatotal.com / senha123
+- Profissional 2: joao@belezatotal.com / senha123
+- Recepcionista: clara@belezatotal.com / senha123
+Salão criado com ID: 1c2672f4-c948-4bb2-a7ef-811c82e5fc7e
+
 ### Iniciar Frontend
 
 ```bash
 # Na pasta frontend
 cd frontend
 npm run dev
+```
+
+### Iniciar backend
+
+```bash
+cd backend
+# Instalação
+npm install
+
+# Desenvolvimento
+npm run start:dev
+
+# Build de produção
+npm run build
+npm run start:prod
+
+# Testes
+npm run test
+```
+
+### Para o "pgadmin" do prisma (CLI):
+
+```
+# Interface administrativa do banco de dados (Prisma Admin)
+# Acesse http://localhost:3000/prisma-admin após iniciar o servidor
+
+# Ou use o Prisma Studio para uma interface alternativa
+npx prisma studio
 ```
 
 ### Configurar Ngrok (para testes de webhook)

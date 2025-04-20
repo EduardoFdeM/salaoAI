@@ -2,16 +2,25 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import type { User, UserRole } from '@/types/auth'
+import { User } from '@/types/auth'
 import { getToken, removeToken, setToken, getUserFromToken } from '@/lib/auth'
 import { parseCookies } from 'nookies'
 
+interface RegisterData {
+  name: string;
+  email: string;
+  password: string;
+  phone: string;
+  role?: string;
+}
+
 interface AuthContextType {
-  user: User | null
-  loading: boolean
-  login: (email: string, password: string) => Promise<User>
-  logout: () => void
-  getInitialRoute: () => string
+  user: User | null;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<User>;
+  register: (data: RegisterData) => Promise<User>;
+  logout: () => void;
+  getInitialRoute: () => string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -61,6 +70,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const register = async (data: RegisterData): Promise<User> => {
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || 'Erro ao registrar usuário')
+      }
+
+      const responseData = await response.json()
+      setToken(responseData.token)
+      setUser(responseData.user)
+      return responseData.user
+    } catch (error) {
+      throw error instanceof Error ? error : new Error('Erro ao registrar usuário')
+    }
+  }
+
   const logout = () => {
     removeToken()
     setUser(null)
@@ -71,14 +102,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user) return '/login'
     
     switch (user.role) {
-      case UserRole.SUPERUSER:
-      case UserRole.ADMIN:
+      case 'SUPERUSER':
+      case 'ADMIN':
         return '/admin/dashboard'
-      case UserRole.SALON_OWNER:
+      case 'SALON_OWNER':
         return '/salon/dashboard'
-      case UserRole.PROFESSIONAL:
+      case 'PROFESSIONAL':
         return '/professional/dashboard'
-      case UserRole.RECEPTIONIST:
+      case 'RECEPTIONIST':
         return '/receptionist/dashboard'
       default:
         return '/login'
@@ -86,7 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, getInitialRoute }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, getInitialRoute }}>
       {children}
     </AuthContext.Provider>
   )
