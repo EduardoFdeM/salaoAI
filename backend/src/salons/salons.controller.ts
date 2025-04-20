@@ -8,6 +8,20 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 export class SalonsController {
   constructor(private readonly salonsService: SalonsService) {}
 
+  @Get('dashboard')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Obter dados do dashboard do salão' })
+  @ApiResponse({ status: 200, description: 'Dados do dashboard' })
+  @ApiResponse({ status: 404, description: 'Salão não encontrado' })
+  async getDashboardData(@Request() req) {
+    if (!req.user || !req.user.id) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+
+    return this.salonsService.getSalonDashboardData(req.user.id, req.user.salon_id);
+  }
+
   @Get('my-salon')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

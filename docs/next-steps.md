@@ -8,16 +8,21 @@
 - - [x] Módulo Prisma (prisma.module.ts, prisma.service.ts)
 - - [x] Módulo Prisma-Admin (prisma-admin.module.ts, prisma-admin.service.ts, prisma-admin.controller.ts, prisma-admin.helpers.ts)
 - - [x] Visualização do Prisma Admin (views/prisma-admin/index.hbs, model.hbs, record.hbs)
-- - [ ] Módulo de Usuários (estrutura criada, mas arquivos vazios)
-- - [ ] Módulo de Autenticação (estrutura criada, mas arquivos vazios)
+- - [x] Schema Prisma definido com modelos principais
+- - [x] Módulo de Serviços (services.service.ts, services.controller.ts, DTOs)
+- - [ ] Módulo de Usuários (estrutura criada, mas arquivos incompletos)
+- - [ ] Módulo de Autenticação (estrutura criada, mas arquivos incompletos)
 -
 - ### Próximos Módulos a Serem Implementados
 - - [ ] Módulo de Salões (estrutura vazia existente)
 - - [ ] Módulo de Profissionais (estrutura vazia existente)
-- - [ ] Módulo de Serviços (estrutura vazia existente)
 - - [ ] Módulo de Agendamentos (estrutura vazia existente)
 - - [ ] Módulo de Clientes (estrutura vazia existente)
 -
+- ### Problemas Atuais
+- - [ ] Erro ao executar seed.ts: "The column `price` does not exist in the current database"
+- - [ ] Inconsistência entre schema Prisma e banco de dados
+- - [ ] Necessidade de sincronizar schema com banco através de migrations
 
 ## Fase 1: Nivelando o terreno
 
@@ -44,6 +49,8 @@
 - [x] Melhorar responsividade das páginas
   - [x] Agendamentos
   - [x] Profissionais
+  - [x] Dashboard (painel lateral e layout principal)
+  - [x] Serviços
 - [ ] Implementar modo escuro
 - [ ] Melhorar acessibilidade
 
@@ -53,6 +60,7 @@
 - [x] Melhorar o acesso do SALON_OWNER
   - [x] Página de Profissionais
   - [x] Página de Agendamentos
+  - [x] Página de Serviços
 - [ ] Melhorar o acesso do PROFESSIONAL
 - [ ] Melhorar o acesso do RECEPTIONIST
 
@@ -70,6 +78,12 @@
 - [ ] Definir estrutura de módulos
 
 * - [x] Estrutura de pastas dos módulos criada
+* - [x] Implementar módulo de serviços
+  - [x] Criar schema para o modelo Service
+  - [x] Criar DTO para criação e atualização de serviço
+  - [x] Implementar services.service.ts com operações CRUD
+  - [x] Implementar services.controller.ts com endpoints REST
+  - [ ] Corrigir problemas com migração e execução do seed
   - [ ] Módulo de autenticação
 * - [ ] Implementar auth.service.ts
 * - [ ] Implementar auth.controller.ts
@@ -82,7 +96,6 @@
 
 - [ ] Módulo de salões
 - [ ] Módulo de profissionais
-- [ ] Módulo de serviços
 - [ ] Módulo de agendamentos
 - [ ] Módulo de clientes
 - [ ] Mapear endpoints necessários
@@ -95,32 +108,57 @@
 - [x] Configurar Prisma ORM
 
 * - [x] Configurar serviço Prisma no NestJS
-  - [ ] Definir schema do Prisma baseado na documentação
+  - [x] Definir schema do Prisma baseado na documentação
   - [ ] Gerar primeira migration
-  - [ ] Configurar client do Prisma
+  - [x] Configurar client do Prisma
 
 - [ ] Implementar módulo de autenticação
   - [ ] Estratégia de JWT
   - [ ] Guards para rotas protegidas
   - [ ] Refresh tokens
-- [ ] Configurar validação com class-validator
-- [ ] Definir estrutura de DTOs (Data Transfer Objects)
+- [x] Configurar validação com class-validator (em DTOs como create-service.dto.ts)
+- [x] Definir estrutura de DTOs (Data Transfer Objects)
 - [ ] Implementar sistema de logging
 
 * - [x] Configurar documentação automática com Swagger (em main.ts)
 
-### 3.3 Implementação Core
+### 3.3 Próximos Passos Prioritários
+
+1. Resolver problema de inconsistência do banco de dados
+
+   - [ ] Executar `prisma migrate dev` para sincronizar o schema
+   - [ ] Ajustar o seed.ts para refletir a estrutura atual
+   - [ ] Testar a execução completa do seed
+
+2. Concluir implementação do módulo de Serviços
+
+   - [ ] Testar endpoints de CRUD para serviços
+   - [ ] Implementar validações adicionais
+   - [ ] Documentar endpoints no Swagger
+
+3. Implementar módulo de autenticação e usuários
+
+   - [ ] Definir estratégia de autenticação com JWT
+   - [ ] Implementar login e registro
+   - [ ] Configurar proteção de rotas baseada em perfil
+
+4. Integrar frontend com backend
+   - [ ] Implementar serviços de API no frontend
+   - [ ] Conectar tela de serviços com API de serviços
+   - [ ] Configurar autenticação no frontend
+
+### 3.4 Implementação Core
 
 - [ ] Implementar CRUD de usuários
 
-* - [ ] Modelo de usuário no Prisma
+* - [x] Modelo de usuário no Prisma
 * - [ ] DTOs de criação, atualização e filtro
 * - [ ] Serviço de usuários com métodos CRUD
 * - [ ] Controlador com endpoints REST
 
 - [ ] Implementar CRUD de salões
 - [ ] Implementar CRUD de profissionais
-- [ ] Implementar CRUD de serviços
+- [x] Implementar CRUD de serviços
 - [ ] Implementar CRUD de agendamentos
 - [ ] Implementar CRUD de clientes
 

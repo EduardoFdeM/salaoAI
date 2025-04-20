@@ -6,14 +6,36 @@ Sistema SaaS para gestão de salões de beleza, focado em agendamentos e gestão
 
 ## Status Atual do Desenvolvimento
 
-- **Backend**: Estrutura básica em NestJS implementada, com os seguintes módulos:
-  - Admin: Painel administrativo, métricas e saúde da API
-  - Prisma: Configuração ORM para acesso ao banco de dados
-  - Prisma-Admin: Interface de administração visual para banco de dados
-  - Users: Estrutura básica para gestão de usuários (em desenvolvimento)
-  - Auth: Módulo de autenticação (em desenvolvimento)
-- **Frontend**: Estrutura em Next.js 14 com App Router
-- **Pendente**: Implementação dos demais módulos (salons, professionals, services, appointments, clients)
+- **Backend**:
+
+  - Estrutura básica em NestJS implementada, com os seguintes módulos:
+    - Admin: Painel administrativo, métricas e saúde da API
+    - Prisma: Configuração ORM para acesso ao banco de dados
+    - Prisma-Admin: Interface de administração visual para banco de dados
+    - Serviços: Módulo completo com CRUD implementado (services.service.ts, services.controller.ts, DTOs)
+    - Users: Estrutura básica para gestão de usuários (em desenvolvimento)
+    - Auth: Módulo de autenticação (em desenvolvimento)
+  - **Schema Prisma**: Definido com todos os modelos principais (User, Salon, Service, Professional, Appointment, etc.)
+  - **Problemas atuais**:
+    - Erro ao executar seed.ts: "The column `price` does not exist in the current database"
+    - Inconsistência entre schema Prisma e banco de dados
+    - Necessidade de sincronizar schema com banco através de migrations
+
+- **Frontend**:
+
+  - Estrutura em Next.js 14 com App Router
+  - UI/UX melhorado:
+    - Dashboard com layout responsivo
+    - Página de Serviços implementada
+    - Página de Profissionais implementada
+    - Página de Agendamentos implementada
+    - Sidebar melhorado para navegação
+  - Próximos passos: conectar com API backend
+
+- **Pendente**:
+  - Finalizar módulos de backend (salons, professionals, appointments, clients)
+  - Resolver problemas de sincronização com banco de dados
+  - Implementar autenticação completa
 
 ## Objetivos
 
@@ -67,32 +89,35 @@ Sistema SaaS para gestão de salões de beleza, focado em agendamentos e gestão
 
 ### Salão (Tenant)
 
-- Informações básicas
-- Configurações
-- Horários de funcionamento
+- Informações básicas (nome, endereço, telefone, email)
+- Configurações (notificações, integrações)
+- Horários de funcionamento (dias, horas, exceções)
 - Políticas de cancelamento
 
 ### Usuário
 
-- Dados pessoais
-- Nível de acesso
-- Vínculo com salão(ões)
-- Preferências
+- Dados pessoais (nome, email, telefone)
+- Nível de acesso (role: OWNER, PROFESSIONAL, RECEPTIONIST)
+- Vínculo com salão(ões) através da tabela SalonUser
+- Preferências (configurações pessoais)
 
 ### Serviço
 
 - Nome e descrição
-- Duração
-- Preço
-- Profissionais habilitados
+- Duração em minutos
+- Preço em reais (Float)
+- Profissionais habilitados (relação com ProfessionalService)
+- Status (ativo/inativo)
 
 ### Agendamento
 
-- Cliente
-- Profissional
-- Serviço(s)
-- Data/Hora
-- Status
+- Cliente (relação com Client)
+- Profissional (relação com SalonUser)
+- Serviço(s) (relação com Service)
+- Data/Hora (startTime, endTime)
+- Status (PENDING, CONFIRMED, COMPLETED, CANCELLED)
+- Preço (baseado no serviço ou personalizado)
+- Histórico de alterações (AppointmentHistory)
 
 ## Funcionalidades por Nível
 
@@ -163,18 +188,24 @@ Sistema SaaS para gestão de salões de beleza, focado em agendamentos e gestão
 
 ### Fase 1 - Base (4 semanas)
 
-1. Setup inicial com Next.js e autenticação
+1. Setup inicial e implementação básica
 
 - [x] Setup básico do backend NestJS
 - [x] Configuração do Prisma ORM
 - [x] Implementação do módulo Admin
 - [x] Interface PrismaAdmin
+- [x] Implementação do módulo de Serviços
+- [x] Melhoria da UI/UX do frontend (dashboard, serviços, profissionais, agendamentos)
+- [ ] Resolver problemas de sincronização com banco de dados
 - [ ] Finalizar módulo de Usuários
 - [ ] Finalizar módulo de Autenticação
 
-2. Implementação do RBAC
-3. Layout base responsivo
-4. Componentes core
+2. Próximos passos prioritários
+
+- [ ] Resolver erro no seed.ts e executar primeira migração
+- [ ] Implementar autenticação JWT
+- [ ] Integrar frontend com backend (começando pelo módulo de Serviços)
+- [ ] Implementar RBAC (controle de acesso baseado em papéis)
 
 ### Fase 2 - Core (6 semanas)
 

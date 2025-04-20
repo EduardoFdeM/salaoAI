@@ -255,20 +255,23 @@ Para testar o sistema, utilize as seguintes credenciais:
 - Role: RECEPTIONIST
 - Permissões: Gerenciamento de agendamentos e clientes
 
-
 Usuários administrativos:
+
 - Superusuário: superuser@example.com / superuser123
 - Administrador: admin@example.com / admin123
 - Dono Genérico: salon@example.com / salon123
 - Profissional Genérico: professional@example.com / professional123
 - Recepcionista Genérico: receptionist@example.com / receptionist123
-----------------------------
+
+---
+
 Usuários do salão:
+
 - Dono: maria@belezatotal.com / senha123
 - Profissional 1: ana@belezatotal.com / senha123
 - Profissional 2: joao@belezatotal.com / senha123
 - Recepcionista: clara@belezatotal.com / senha123
-Salão criado com ID: 1c2672f4-c948-4bb2-a7ef-811c82e5fc7e
+  Salão criado com ID: 1c2672f4-c948-4bb2-a7ef-811c82e5fc7e
 
 ### Iniciar Frontend
 

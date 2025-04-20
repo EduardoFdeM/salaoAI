@@ -132,21 +132,27 @@ async function main() {
         data: {
           salonId: exampleSalon.id,
           name: "Corte Feminino",
-          description: "Corte, lavagem e finalização"
+          description: "Corte, lavagem e finalização",
+          price: 80.0,
+          duration: 60
         }
       }),
       prisma.service.create({
         data: {
           salonId: exampleSalon.id,
           name: "Coloração",
-          description: "Coloração completa com produtos de primeira linha"
+          description: "Coloração completa com produtos de primeira linha",
+          price: 150.0,
+          duration: 120
         }
       }),
       prisma.service.create({
         data: {
           salonId: exampleSalon.id,
           name: "Manicure",
-          description: "Tratamento completo para unhas"
+          description: "Tratamento completo para unhas",
+          price: 45.0,
+          duration: 45
         }
       })
     ]);
