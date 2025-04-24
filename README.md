@@ -255,23 +255,24 @@ Para testar o sistema, utilize as seguintes credenciais:
 - Role: RECEPTIONIST
 - Permissões: Gerenciamento de agendamentos e clientes
 
-Usuários administrativos:
-
-- Superusuário: superuser@example.com / superuser123
-- Administrador: admin@example.com / admin123
-- Dono Genérico: salon@example.com / salon123
-- Profissional Genérico: professional@example.com / professional123
-- Recepcionista Genérico: receptionist@example.com / receptionist123
-
----
-
-Usuários do salão:
-
-- Dono: maria@belezatotal.com / senha123
-- Profissional 1: ana@belezatotal.com / senha123
-- Profissional 2: joao@belezatotal.com / senha123
-- Recepcionista: clara@belezatotal.com / senha123
-  Salão criado com ID: 1c2672f4-c948-4bb2-a7ef-811c82e5fc7e
+Usuários de Teste:
+  - Superusuário: superuser@example.com / superuser123
+  - Admin: admin@example.com / admin123
+Salão: Salão Beleza Total (ID: 05f85e09-48a1-4f0b-aeac-19cc42cb9c46)
+  - Dono Genérico: salon@example.com / salon123
+  - Profissional Genérico: professional@example.com / professional123
+  - Recepcionista Genérico: receptionist@example.com / receptionist123
+  ---
+  - Dona Específica: maria.dona@email.com / senha123
+  - Profissional Específico 1: ana.pro@email.com / senha123
+  - Profissional Específico 2: joao.pro@email.com / senha123
+  - Recepcionista Específico: clara.recep@email.com / senha123
+Clientes:
+  - Fernanda Lima (11987654321)
+  - Ricardo Alves (11912345678)
+Agendamentos:
+  - e0ba525d... (CONFIRMED) - Fernanda Lima com Profissional ID 54f273ff...
+  - 00156496... (PENDING) - Ricardo Alves com Profissional ID 4140e7ca...
 
 ### Iniciar Frontend
 
@@ -312,10 +313,10 @@ npx prisma studio
 ### Configurar Ngrok (para testes de webhook)
 
 ```bash
-# Expor servidor Django para internet (para webhooks do WhatsApp)
-ngrok http 8000
-# Obter URL pública para configurar no painel do Evolution API
-# Exemplo: https://a1b2c3d4.ngrok.io/api/webhook/whatsapp/
+# Execute-o na pasta raiz do projeto onde está o arquivo ngrok.yml.
+ngrok http 3333 --config=ngrok.yml
+# Você também pode usar ngrok diretamente sem o arquivo de configuração:
+ngrok http 3333
 ```
 
 ### Ambiente de Produção

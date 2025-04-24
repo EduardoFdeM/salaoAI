@@ -114,3 +114,30 @@ A documentação completa da API está disponível em `/api/docs` após iniciar 
 ## Considerações para Deploy
 
 Utilize o Railway para fácil implantação com PostgreSQL integrado.
+
+
+## Endpoints de Integração com WhatsApp (n8n)
+
+### Endpoints do Backend (NestJS)
+- `POST /api/whatsapp/webhook` - Recebe mensagens do WhatsApp
+- `POST /api/whatsapp/create-appointment` - Cria agendamento via WhatsApp
+- `POST /api/whatsapp/verify-client` - Verifica se número é cliente
+- `POST /api/whatsapp/register-instance` - Registra instância do WhatsApp
+- `GET /api/whatsapp/instance-status/:salonId` - Verifica status da instância
+- `POST /api/whatsapp/qr-callback` - Recebe QR code para conexão
+- `POST /api/whatsapp/schedule-notification` - Agenda notificações
+
+### Endpoints do Frontend (Next.js)
+- `POST /api/salon/connect-whatsapp` - Inicia processo de conexão
+- `GET /api/salon/whatsapp-status` - Verifica status da conexão
+
+### Configuração do N8N
+- Porta padrão do n8n: 5678
+- URLs de webhook no .env:
+  - N8N_WHATSAPP_REGISTER_URL=https://n8n.evergreenmkt.com.br/webhook/whatsapp-register
+  - N8N_NOTIFICATION_URL=https://n8n.evergreenmkt.com.br/webhook/whatsapp-notification
+
+### Fluxos do N8N
+1. **Fluxo de Recepção de Mensagens**: Recebe mensagens via webhook da Evolution API, processa com IA e envia para o backend
+2. **Fluxo de Notificações**: Recebe pedidos de notificação do backend e envia mensagens via Evolution API
+3. **Fluxo de Conexão**: Gerencia o processo de conexão com WhatsApp, incluindo geração e exibição de QR code

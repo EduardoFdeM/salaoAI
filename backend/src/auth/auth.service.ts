@@ -5,6 +5,22 @@ import { PrismaService } from '../prisma/prisma.service';
 import { User } from '@prisma/client';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 
+// Enum para o frontend (mapeamento dos roles do banco)
+export enum FrontendUserRole {
+  SUPERUSER = "SUPERUSER",
+  ADMIN = "ADMIN",
+  SALON_OWNER = "SALON_OWNER",
+  PROFESSIONAL = "PROFESSIONAL",
+  RECEPTIONIST = "RECEPTIONIST"
+}
+
+// Mapeamento de papéis do Prisma para frontend
+const roleMapping = {
+  OWNER: FrontendUserRole.SALON_OWNER,
+  PROFESSIONAL: FrontendUserRole.PROFESSIONAL,
+  RECEPTIONIST: FrontendUserRole.RECEPTIONIST
+};
+
 interface JwtPayload {
   sub: string;
   email: string;
@@ -46,38 +62,32 @@ export class AuthService {
     // Obter informações do usuário do salão (se existir)
     const salonUser = await this.getSalonUserInfo(user.id);
 
-    // Determinar o papel correto baseado na lógica do frontend
-    let userRole: string;
-    if (user.email === 'superuser@example.com') { // Identificar Superuser pelo email (ou outra lógica)
-      userRole = 'SUPERUSER';
-    } else if (salonUser) {
-      switch (salonUser.role) {
-        case 'OWNER':
-          userRole = 'SALON_OWNER';
-          break;
-        case 'PROFESSIONAL':
-          userRole = 'PROFESSIONAL';
-          break;
-        case 'RECEPTIONIST':
-          userRole = 'RECEPTIONIST';
-          break;
-        default:
-          userRole = 'ADMIN'; // Caso inesperado no SalonUser
+    // Determinar o papel correto baseado na lógica
+    let frontendUserRole: FrontendUserRole;
+    
+    if (user.isSystemAdmin) {
+      frontendUserRole = FrontendUserRole.ADMIN;
+      
+      // Superuser lógica opcional
+      if (process.env.SUPERUSER_EMAIL && user.email === process.env.SUPERUSER_EMAIL) {
+        frontendUserRole = FrontendUserRole.SUPERUSER;
       }
+    } else if (salonUser) {
+      frontendUserRole = roleMapping[salonUser.role] || FrontendUserRole.PROFESSIONAL;
     } else {
-      // Se não está no SalonUser e não é superuser@example.com, assume ADMIN
-      userRole = 'ADMIN'; 
+      // Usuário sem papel definido
+      throw new Error("Usuário sem papel definido no sistema.");
     }
     
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
       name: user.name,
-      role: userRole, // Usar o papel determinado
+      role: frontendUserRole,
       salon_id: salonUser?.salonId || null,
     };
 
-    // Obter informações adicionais do usuário se estiver associado a um salão
+    // Obter informações adicionais do salão se estiver associado
     let salonData: { id: string; name: string; role: string } | null = null;
     if (salonUser?.salonId) {
       const salon = await this.prisma.salon.findUnique({
@@ -93,21 +103,24 @@ export class AuthService {
       }
     }
 
+    const expiresInSeconds = parseInt(process.env.JWT_EXPIRES_IN_SECONDS || "28800", 10);
+
     return {
-      access_token: this.jwtService.sign(payload),
-      token_type: 'Bearer',
-      expires_in: 28800, // 8 horas em segundos
+      access_token: this.jwtService.sign(payload, { expiresIn: expiresInSeconds }),
+      token_type: "Bearer",
+      expires_in: expiresInSeconds,
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
-        role: userRole, // Usar o papel determinado aqui também
+        role: frontendUserRole,
         salon_id: salonUser?.salonId || null,
         salon: salonData,
-        avatar_url: null, // Implementar futuramente
-        created_at: user.createdAt,
-        updated_at: user.updatedAt,
+        avatar_url: null,
+        created_at: user.createdAt.toISOString(),
+        updated_at: user.updatedAt.toISOString(),
         is_active: user.active,
+        is_system_admin: user.isSystemAdmin,
       },
     };
   }
@@ -117,13 +130,13 @@ export class AuthService {
    */
   async getUserFromToken(token: string): Promise<User | null> {
     try {
-      const payload = this.jwtService.verify(token) as JwtPayload;
+      const payload = this.jwtService.verify(token);
       if (payload && payload.sub) {
         return this.usersService.findOne(payload.sub);
       }
       return null;
     } catch (error) {
-      console.error('Error verifying token:', error);
+      console.error("Error verifying token:", error);
       return null;
     }
   }
@@ -138,7 +151,7 @@ export class AuthService {
         userId,
         active: true,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
     
     return salonUser;

@@ -1,6 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
-import { Role } from '@prisma/client';
+import { IsEmail, IsNotEmpty, IsString, MinLength, IsOptional, IsEnum } from 'class-validator';
+
+// Enum local para roles
+export enum UserRole {
+  OWNER = "OWNER",
+  PROFESSIONAL = "PROFESSIONAL",
+  RECEPTIONIST = "RECEPTIONIST"
+}
 
 export class CreateUserDto {
   @ApiProperty({ description: 'Nome do usuário' })
@@ -25,9 +31,11 @@ export class CreateUserDto {
   password: string;
 
   @ApiProperty({
-    description: 'Papel do usuário no sistema',
-    enum: Role,
-    default: Role.OWNER,
+    description: 'Papel inicial do usuário em um salão (se aplicável). Usado principalmente se o registro for vinculado a um convite ou criação de salão.',
+    enum: UserRole,
+    required: false,
   })
-  role?: Role;
+  @IsOptional()
+  @IsEnum(UserRole)
+  role?: UserRole;
 }

@@ -1,380 +1,408 @@
-import { PrismaClient, Role } from "@prisma/client";
+import { PrismaClient, Role, AppointmentStatus, Prisma } from "@prisma/client";
 import * as bcrypt from "bcrypt";
 
 const prisma = new PrismaClient();
 
 async function main() {
   try {
-    // Limpar tabelas existentes
-    await prisma.appointmentHistory.deleteMany();
-    await prisma.appointment.deleteMany();
-    await prisma.professionalService.deleteMany();
-    await prisma.service.deleteMany();
-    await prisma.salonUser.deleteMany();
-    await prisma.user.deleteMany();
-    await prisma.salon.deleteMany();
+    // Limpar tabelas existentes - REMOVIDO pois o reset faz isso
 
-    console.log("Banco de dados limpo.");
+    // --- Criação de Usuários ---
+    console.log("Criando usuários...");
+    // Senhas
+    const superuserPasswordHash = await bcrypt.hash("superuser123", 10);
+    const adminPasswordHash = await bcrypt.hash("admin123", 10);
+    const ownerGenericPasswordHash = await bcrypt.hash("salon123", 10);
+    const professionalGenericPasswordHash = await bcrypt.hash("professional123", 10);
+    const receptionistGenericPasswordHash = await bcrypt.hash("receptionist123", 10);
+    const defaultPasswordHash = await bcrypt.hash("senha123", 10); // Senha padrão para os específicos
 
-    // Hash padrão para senha 'senha123'
-    const passwordHash = await bcrypt.hash("senha123", 10);
-    
-    // Hash para senhas específicas
-    const superuserHash = await bcrypt.hash("superuser123", 10);
-    const adminHash = await bcrypt.hash("admin123", 10);
-    const salonHash = await bcrypt.hash("salon123", 10);
-    const professionalHash = await bcrypt.hash("professional123", 10);
-    const receptionistHash = await bcrypt.hash("receptionist123", 10);
+    // -- Usuários de Teste Genéricos --
+    const superuserUser = await prisma.user.create({
+      data: {
+        name: "Super Usuário",
+        email: "superuser@example.com",
+        phone: "00000000000", // Telefone único
+        passwordHash: superuserPasswordHash,
+        isSystemAdmin: true, // Superusuário também é admin de sistema
+      },
+    });
+    console.log(`Superusuário criado: ${superuserUser.email}`);
 
-    // Criar usuários administrativos (sem vínculo com salão)
-    const adminUsers = await Promise.all([
-      // Superusuário
-      prisma.user.create({
-        data: {
-          name: "Super Usuário",
-          email: "superuser@example.com",
-          phone: "11900000000",
-          passwordHash: superuserHash
-        }
-      }),
-      
-      // Administrador
-      prisma.user.create({
-        data: {
-          name: "Administrador",
-          email: "admin@example.com",
-          phone: "11911111111",
-          passwordHash: adminHash
-        }
-      }),
-      
-      // Dono genérico
-      prisma.user.create({
-        data: {
-          name: "Dono de Salão",
-          email: "salon@example.com",
-          phone: "11922222222",
-          passwordHash: salonHash
-        }
-      }),
-      
-      // Profissional genérico
-      prisma.user.create({
-        data: {
-          name: "Profissional Genérico",
-          email: "professional@example.com",
-          phone: "11933333333",
-          passwordHash: professionalHash
-        }
-      }),
-      
-      // Recepcionista genérico
-      prisma.user.create({
-        data: {
-          name: "Recepcionista Genérico",
-          email: "receptionist@example.com",
-          phone: "11944444444",
-          passwordHash: receptionistHash
-        }
-      })
-    ]);
+    const adminUser = await prisma.user.create({
+      data: {
+        name: "Admin Genérico",
+        email: "admin@example.com",
+        phone: "00000000001", // Telefone único
+        passwordHash: adminPasswordHash,
+        isSystemAdmin: true,
+      },
+    });
+    console.log(`Admin Genérico criado: ${adminUser.email}`);
 
-    // Criar salão exemplo
+    const ownerGenericUser = await prisma.user.create({
+      data: {
+        name: "Dono Genérico Salão",
+        email: "salon@example.com",
+        phone: "00000000002", // Telefone único
+        passwordHash: ownerGenericPasswordHash,
+      },
+    });
+    console.log(`Dono Genérico criado: ${ownerGenericUser.email}`);
+
+    const professionalGenericUser = await prisma.user.create({
+      data: {
+        name: "Profissional Genérico",
+        email: "professional@example.com",
+        phone: "00000000003", // Telefone único
+        passwordHash: professionalGenericPasswordHash,
+      },
+    });
+    console.log(`Profissional Genérico criado: ${professionalGenericUser.email}`);
+
+    const receptionistGenericUser = await prisma.user.create({
+      data: {
+        name: "Recepcionista Genérico",
+        email: "receptionist@example.com",
+        phone: "00000000004", // Telefone único
+        passwordHash: receptionistGenericPasswordHash,
+      },
+    });
+    console.log(`Recepcionista Genérico criado: ${receptionistGenericUser.email}`);
+
+
+    // -- Usuários Específicos (mantidos do seed anterior) --
+    // Criar usuário Dono de Salão (Específico)
+    const ownerUser = await prisma.user.create({
+        data: {
+        name: "Maria Silva (Dona)",
+        email: "maria.dona@email.com", // Email específico
+          phone: "11911111111", // Telefone específico
+        passwordHash: defaultPasswordHash,
+      },
+    });
+    console.log(`Dono Específico criado: ${ownerUser.email}`);
+
+    // Criar Usuário Profissional 1 (Específico)
+    const professionalUser1 = await prisma.user.create({
+        data: {
+        name: "Ana Oliveira (Profissional)",
+        email: "ana.pro@email.com", // Email específico
+          phone: "11922222222", // Telefone específico
+        passwordHash: defaultPasswordHash,
+      },
+    });
+    console.log(`Profissional Específico 1 criado: ${professionalUser1.email}`);
+
+    // Criar Usuário Profissional 2 (Específico)
+    const professionalUser2 = await prisma.user.create({
+        data: {
+        name: "João Santos (Profissional)",
+        email: "joao.pro@email.com", // Email específico
+          phone: "11933333333", // Telefone específico
+        passwordHash: defaultPasswordHash,
+      },
+    });
+    console.log(`Profissional Específico 2 criado: ${professionalUser2.email}`);
+
+    // Criar Usuário Recepcionista (Específico)
+    const receptionistUser = await prisma.user.create({
+        data: {
+        name: "Clara Luz (Recepcionista)",
+        email: "clara.recep@email.com", // Email específico
+          phone: "11944444444", // Telefone específico
+        passwordHash: defaultPasswordHash,
+      },
+    });
+    console.log(`Recepcionista Específico criado: ${receptionistUser.email}`);
+
+    // --- Criação do Salão ---
+    console.log("Criando salão...");
+    const businessHoursData: Prisma.JsonObject = {
+      monday: { isOpen: true, slots: [{ start: "09:00", end: "18:00" }] },
+      tuesday: { isOpen: true, slots: [{ start: "09:00", end: "18:00" }] },
+      wednesday: { isOpen: true, slots: [{ start: "09:00", end: "18:00" }] },
+      thursday: { isOpen: true, slots: [{ start: "09:00", end: "18:00" }] },
+      friday: { isOpen: true, slots: [{ start: "09:00", end: "20:00" }] },
+      saturday: { isOpen: true, slots: [{ start: "09:00", end: "16:00" }] },
+      sunday: { isOpen: false, slots: [] },
+    };
+    const notificationSettingsData: Prisma.JsonObject = {
+      appointmentConfirmation: true,
+      appointmentReminderHoursBefore: [24, 2],
+      cancellationConfirmation: true,
+      rescheduleConfirmation: true,
+    };
+
     const exampleSalon = await prisma.salon.create({
       data: {
         name: "Salão Beleza Total",
         address: "Rua das Flores, 123 - Centro",
         phone: "11999998888",
         email: "contato@belezatotal.com",
-        businessHours: {
-          monday: {
-            isOpen: true,
-            slots: [{ start: "09:00", end: "18:00" }]
-          },
-          tuesday: {
-            isOpen: true,
-            slots: [{ start: "09:00", end: "18:00" }]
-          },
-          wednesday: {
-            isOpen: true,
-            slots: [{ start: "09:00", end: "18:00" }]
-          },
-          thursday: {
-            isOpen: true,
-            slots: [{ start: "09:00", end: "18:00" }]
-          },
-          friday: {
-            isOpen: true,
-            slots: [{ start: "09:00", end: "20:00" }]
-          },
-          saturday: {
-            isOpen: true,
-            slots: [{ start: "09:00", end: "16:00" }]
-          },
-          sunday: {
-            isOpen: false,
-            slots: []
-          }
-        },
-        notificationSettings: {
-          appointmentConfirmation: true,
-          appointmentReminder: true,
-          marketingMessages: false,
-          whatsappEnabled: true,
-          emailEnabled: true
-        }
-      }
+        logoUrl: null,
+        businessHours: businessHoursData,
+        notificationSettings: notificationSettingsData,
+      },
     });
+    console.log(`Salão criado: ${exampleSalon.name} (ID: ${exampleSalon.id})`);
 
-    // Criar serviços
-    const services = await Promise.all([
-      prisma.service.create({
+
+    // --- Criação de Serviços do Salão ---
+    console.log("Criando serviços...");
+    const serviceCut = await prisma.service.create({
         data: {
           salonId: exampleSalon.id,
           name: "Corte Feminino",
-          description: "Corte, lavagem e finalização",
-          price: 80.0,
-          duration: 60
-        }
-      }),
-      prisma.service.create({
+        description: "Corte moderno, inclui lavagem e secagem básica.",
+        price: 90.0,
+        duration: 60,
+      },
+    });
+    const serviceColor = await prisma.service.create({
         data: {
           salonId: exampleSalon.id,
-          name: "Coloração",
-          description: "Coloração completa com produtos de primeira linha",
-          price: 150.0,
-          duration: 120
-        }
-      }),
-      prisma.service.create({
+        name: "Coloração Raiz",
+        description: "Aplicação de coloração na raiz.",
+        price: 120.0,
+        duration: 90,
+      },
+    });
+    const serviceManicure = await prisma.service.create({
         data: {
           salonId: exampleSalon.id,
-          name: "Manicure",
-          description: "Tratamento completo para unhas",
-          price: 45.0,
-          duration: 45
-        }
-      })
-    ]);
+        name: "Manicure Simples",
+        description: "Cutilagem e esmaltação.",
+        price: 35.0,
+        duration: 45,
+      },
+    });
+    console.log("Serviços criados:", serviceCut.name, serviceColor.name, serviceManicure.name);
 
-    // Criar usuários do salão
-    const users = await Promise.all([
-      // Dono do Salão
-      prisma.user.create({
-        data: {
-          name: "Maria Silva",
-          email: "maria@belezatotal.com",
-          phone: "11999990000",
-          passwordHash
-        }
-      }),
-      
-      // Profissional 1
-      prisma.user.create({
-        data: {
-          name: "Ana Oliveira",
-          email: "ana@belezatotal.com",
-          phone: "11999991111",
-          passwordHash
-        }
-      }),
-      
-      // Profissional 2
-      prisma.user.create({
-        data: {
-          name: "João Santos",
-          email: "joao@belezatotal.com",
-          phone: "11999992222",
-          passwordHash
-        }
-      }),
-      
-      // Recepcionista
-      prisma.user.create({
-        data: {
-          name: "Clara Luz",
-          email: "clara@belezatotal.com",
-          phone: "11999993333",
-          passwordHash
-        }
-      })
-    ]);
+    // --- Associação Usuários ao Salão (SalonUser) ---
+    console.log("Associando usuários ao salão...");
+    const ownerWorkingHours: Prisma.JsonObject = businessHoursData;
+    const prof1WorkingHours: Prisma.JsonObject = {
+      monday: { isOpen: true, slots: [{ start: "09:00", end: "18:00" }] },
+      tuesday: { isOpen: true, slots: [{ start: "09:00", end: "18:00" }] },
+      wednesday: { isOpen: true, slots: [{ start: "09:00", end: "18:00" }] },
+      thursday: { isOpen: false, slots: [] },
+      friday: { isOpen: true, slots: [{ start: "09:00", end: "18:00" }] },
+      saturday: { isOpen: true, slots: [{ start: "09:00", end: "14:00" }] },
+      sunday: { isOpen: false, slots: [] },
+    };
+    const prof2WorkingHours: Prisma.JsonObject = {
+      monday: { isOpen: false, slots: [] },
+      tuesday: { isOpen: true, slots: [{ start: "11:00", end: "20:00" }] },
+      wednesday: { isOpen: true, slots: [{ start: "11:00", end: "20:00" }] },
+      thursday: { isOpen: true, slots: [{ start: "11:00", end: "20:00" }] },
+      friday: { isOpen: true, slots: [{ start: "11:00", end: "20:00" }] },
+      saturday: { isOpen: true, slots: [{ start: "10:00", end: "16:00" }] },
+      sunday: { isOpen: false, slots: [] },
+    };
 
-    // Associar salão genérico ao usuário genérico
+    // Associar Dono Específico
     await prisma.salonUser.create({
       data: {
-        userId: adminUsers[2].id, // Dono genérico (salon@example.com)
+        userId: ownerUser.id, // Específico
         salonId: exampleSalon.id,
         role: Role.OWNER,
-        workingHours: {
-          monday: { isWorking: true, slots: [{ start: "09:00", end: "18:00" }] },
-          tuesday: { isWorking: true, slots: [{ start: "09:00", end: "18:00" }] },
-          wednesday: { isWorking: true, slots: [{ start: "09:00", end: "18:00" }] },
-          thursday: { isWorking: true, slots: [{ start: "09:00", end: "18:00" }] },
-          friday: { isWorking: true, slots: [{ start: "09:00", end: "18:00" }] },
-          saturday: { isWorking: true, slots: [{ start: "09:00", end: "14:00" }] },
-          sunday: { isWorking: false, slots: [] }
-        }
-      }
+        workingHours: ownerWorkingHours,
+      },
     });
 
-    // Associar profissional genérico ao salão
-    const genericProfessionalSalonUser = await prisma.salonUser.create({
+    // Associar Profissional Específico 1
+    const professionalSalonUser1 = await prisma.salonUser.create({
       data: {
-        userId: adminUsers[3].id, // Profissional genérico (professional@example.com)
+        userId: professionalUser1.id, // Específico
         salonId: exampleSalon.id,
         role: Role.PROFESSIONAL,
-        workingHours: {
-          monday: { isWorking: true, slots: [{ start: "09:00", end: "18:00" }] },
-          tuesday: { isWorking: true, slots: [{ start: "09:00", end: "18:00" }] },
-          wednesday: { isWorking: true, slots: [{ start: "09:00", end: "18:00" }] },
-          thursday: { isWorking: true, slots: [{ start: "09:00", end: "18:00" }] },
-          friday: { isWorking: true, slots: [{ start: "09:00", end: "18:00" }] },
-          saturday: { isWorking: true, slots: [{ start: "09:00", end: "14:00" }] },
-          sunday: { isWorking: false, slots: [] }
-        }
-      }
+        workingHours: prof1WorkingHours,
+      },
     });
 
-    // Associar recepcionista genérico ao salão
+    // Associar Profissional Específico 2
+    const professionalSalonUser2 = await prisma.salonUser.create({
+      data: {
+        userId: professionalUser2.id, // Específico
+        salonId: exampleSalon.id,
+        role: Role.PROFESSIONAL,
+        workingHours: prof2WorkingHours,
+      },
+    });
+
+    // Associar Recepcionista Específico
     await prisma.salonUser.create({
       data: {
-        userId: adminUsers[4].id, // Recepcionista genérico (receptionist@example.com)
+        userId: receptionistUser.id, // Específico
         salonId: exampleSalon.id,
-        role: Role.RECEPTIONIST
-      }
+        role: Role.RECEPTIONIST,
+      },
     });
 
-    // Associar usuários do salão
-    const salonUsers = await Promise.all([
-      // Dono
-      prisma.salonUser.create({
+    // Associar Dono Genérico
+     await prisma.salonUser.create({
+      data: {
+        userId: ownerGenericUser.id, // Genérico
+        salonId: exampleSalon.id,
+        role: Role.OWNER,
+        // Pode adicionar workingHours se necessário
+      },
+    });
+
+    // Associar Profissional Genérico
+    await prisma.salonUser.create({
+      data: {
+        userId: professionalGenericUser.id, // Genérico
+        salonId: exampleSalon.id,
+        role: Role.PROFESSIONAL,
+         // Pode adicionar workingHours se necessário
+      },
+    });
+
+    // Associar Recepcionista Genérico
+    await prisma.salonUser.create({
+      data: {
+        userId: receptionistGenericUser.id, // Genérico
+        salonId: exampleSalon.id,
+        role: Role.RECEPTIONIST,
+      },
+    });
+    console.log("Usuários associados ao salão.");
+
+    // --- Criação de Clientes (Exemplo) ---
+    console.log("Criando clientes...");
+    const client1 = await prisma.client.create({
         data: {
-          userId: users[0].id,
           salonId: exampleSalon.id,
-          role: Role.OWNER,
-          workingHours: {
-            monday: { isWorking: true, slots: [{ start: "09:00", end: "18:00" }] },
-            tuesday: { isWorking: true, slots: [{ start: "09:00", end: "18:00" }] },
-            wednesday: { isWorking: true, slots: [{ start: "09:00", end: "18:00" }] },
-            thursday: { isWorking: true, slots: [{ start: "09:00", end: "18:00" }] },
-            friday: { isWorking: true, slots: [{ start: "09:00", end: "18:00" }] },
-            saturday: { isWorking: true, slots: [{ start: "09:00", end: "14:00" }] },
-            sunday: { isWorking: false, slots: [] }
-          }
-        }
-      }),
-
-      // Profissional 1
-      prisma.salonUser.create({
+        name: "Fernanda Lima",
+        phone: "11987654321",
+        email: "fernanda.lima@email.com",
+        notes: "Prefere produtos sem parabenos.",
+      },
+    });
+    const client2 = await prisma.client.create({
         data: {
-          userId: users[1].id,
           salonId: exampleSalon.id,
-          role: Role.PROFESSIONAL,
-          workingHours: {
-            monday: { isWorking: true, slots: [{ start: "09:00", end: "18:00" }] },
-            tuesday: { isWorking: true, slots: [{ start: "09:00", end: "18:00" }] },
-            wednesday: { isWorking: true, slots: [{ start: "09:00", end: "18:00" }] },
-            thursday: { isWorking: true, slots: [{ start: "09:00", end: "18:00" }] },
-            friday: { isWorking: true, slots: [{ start: "09:00", end: "18:00" }] },
-            saturday: { isWorking: true, slots: [{ start: "09:00", end: "14:00" }] },
-            sunday: { isWorking: false, slots: [] }
-          }
-        }
-      }),
+        name: "Ricardo Alves",
+        phone: "11912345678",
+        email: "ricardo.alves@email.com",
+        notes: "Cliente antigo.",
+      },
+    });
+    console.log("Clientes criados:", client1.name, client2.name);
 
-      // Profissional 2
-      prisma.salonUser.create({
+    // --- Associação Serviços aos Profissionais (ProfessionalService) ---
+    console.log("Associando serviços aos profissionais...");
+    await prisma.professionalService.createMany({
+      data: [
+        {
+          professionalId: professionalSalonUser1.id,
+          serviceId: serviceCut.id,
+          price: 90.0,
+          durationMinutes: 60,
+        },
+        {
+          professionalId: professionalSalonUser1.id,
+          serviceId: serviceManicure.id,
+          price: 35.0,
+          durationMinutes: 45,
+        },
+      ],
+    });
+    await prisma.professionalService.createMany({
+      data: [
+        {
+          professionalId: professionalSalonUser2.id,
+          serviceId: serviceCut.id,
+          price: 95.0,
+          durationMinutes: 55,
+        },
+        {
+          professionalId: professionalSalonUser2.id,
+          serviceId: serviceColor.id,
+          price: 120.0,
+          durationMinutes: 90,
+        },
+      ],
+    });
+    console.log("Serviços associados aos profissionais.");
+
+    // --- Criação de Agendamentos (Exemplo) ---
+    console.log("Criando agendamentos de exemplo...");
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(now.getDate() + 1);
+    const nextWeek = new Date(now);
+    nextWeek.setDate(now.getDate() + 7);
+
+    const appointment1 = await prisma.appointment.create({
         data: {
-          userId: users[2].id,
           salonId: exampleSalon.id,
-          role: Role.PROFESSIONAL,
-          workingHours: {
-            monday: { isWorking: true, slots: [{ start: "12:00", end: "20:00" }] },
-            tuesday: { isWorking: true, slots: [{ start: "12:00", end: "20:00" }] },
-            wednesday: { isWorking: true, slots: [{ start: "12:00", end: "20:00" }] },
-            thursday: { isWorking: true, slots: [{ start: "12:00", end: "20:00" }] },
-            friday: { isWorking: true, slots: [{ start: "12:00", end: "20:00" }] },
-            saturday: { isWorking: true, slots: [{ start: "10:00", end: "16:00" }] },
-            sunday: { isWorking: false, slots: [] }
-          }
-        }
-      }),
+        clientId: client1.id,
+        professionalId: professionalSalonUser1.id, // Profissional específico
+        serviceId: serviceCut.id,
+        startTime: new Date(tomorrow.setHours(10, 0, 0, 0)),
+        endTime: new Date(tomorrow.setHours(11, 0, 0, 0)),
+        status: AppointmentStatus.CONFIRMED,
+        price: 90.0,
+        notes: "Cliente pediu confirmação por WhatsApp.",
+      },
+    });
 
-      // Recepcionista
-      prisma.salonUser.create({
+    const appointment2 = await prisma.appointment.create({
         data: {
-          userId: users[3].id,
           salonId: exampleSalon.id,
-          role: Role.RECEPTIONIST
-        }
-      })
-    ]);
+        clientId: client2.id,
+        professionalId: professionalSalonUser2.id, // Profissional específico
+        serviceId: serviceColor.id,
+        startTime: new Date(nextWeek.setHours(14, 0, 0, 0)),
+        endTime: new Date(nextWeek.setHours(15, 30, 0, 0)),
+        status: AppointmentStatus.PENDING,
+        price: 120.0,
+      },
+    });
+    console.log("Agendamentos de exemplo criados.");
 
-    // Criar serviços dos profissionais
-    await Promise.all([
-      // Serviços do Profissional 1
-      ...services.map((service) => 
-        prisma.professionalService.create({
-          data: {
-            professionalId: salonUsers[1].id,
-            serviceId: service.id,
-            price: Math.floor(Math.random() * 100) + 50,
-            durationMinutes: 60
-          }
-        })
-      ),
-      // Serviços do Profissional 2
-      ...services.map((service) => 
-        prisma.professionalService.create({
-          data: {
-            professionalId: salonUsers[2].id,
-            serviceId: service.id,
-            price: Math.floor(Math.random() * 100) + 50,
-            durationMinutes: 60
-          }
-        })
-      ),
-      // Serviços do Profissional Genérico
-      ...services.map((service) => 
-        prisma.professionalService.create({
-          data: {
-            professionalId: genericProfessionalSalonUser.id,
-            serviceId: service.id,
-            price: Math.floor(Math.random() * 100) + 50,
-            durationMinutes: 60
-          }
-        })
-      )
-    ]);
-
-    console.log("Dados de exemplo criados com sucesso!");
-    console.log("----------------------------");
-    console.log("Usuários administrativos:");
-    console.log("- Superusuário: superuser@example.com / superuser123");
-    console.log("- Administrador: admin@example.com / admin123");
-    console.log("- Dono Genérico: salon@example.com / salon123");
-    console.log("- Profissional Genérico: professional@example.com / professional123");
-    console.log("- Recepcionista Genérico: receptionist@example.com / receptionist123");
-    console.log("----------------------------");
-    console.log("Usuários do salão:");
-    console.log("- Dono: maria@belezatotal.com / senha123");
-    console.log("- Profissional 1: ana@belezatotal.com / senha123");
-    console.log("- Profissional 2: joao@belezatotal.com / senha123");
-    console.log("- Recepcionista: clara@belezatotal.com / senha123");
-    console.log("Salão criado com ID:", exampleSalon.id);
+    // --- Resumo Final ---
+    console.log("-------------------------------------------");
+    console.log("SEED COMPLETADO COM SUCESSO!");
+    console.log("-------------------------------------------");
+    console.log("Usuários de Teste:");
+    console.log("  - Superusuário:", superuserUser.email, "/ superuser123");
+    console.log("  - Admin:", adminUser.email, "/ admin123");
+    console.log("Salão:", exampleSalon.name, `(ID: ${exampleSalon.id})`);
+    console.log("  - Dono Genérico:", ownerGenericUser.email, "/ salon123");
+    console.log("  - Profissional Genérico:", professionalGenericUser.email, "/ professional123");
+    console.log("  - Recepcionista Genérico:", receptionistGenericUser.email, "/ receptionist123");
+    console.log("  ---");
+    console.log("  - Dona Específica:", ownerUser.email, "/ senha123");
+    console.log("  - Profissional Específico 1:", professionalUser1.email, "/ senha123");
+    console.log("  - Profissional Específico 2:", professionalUser2.email, "/ senha123");
+    console.log("  - Recepcionista Específico:", receptionistUser.email, "/ senha123");
+    console.log("Clientes:");
+    console.log("  -", client1.name, `(${client1.phone})`);
+    console.log("  -", client2.name, `(${client2.phone})`);
+    console.log("Agendamentos:");
+    console.log(`  - ${appointment1.id.substring(0,8)}... (${appointment1.status}) - ${client1.name} com Profissional ID ${appointment1.professionalId.substring(0,8)}...`);
+    console.log(`  - ${appointment2.id.substring(0,8)}... (${appointment2.status}) - ${client2.name} com Profissional ID ${appointment2.professionalId.substring(0,8)}...`);
+    console.log("-------------------------------------------");
 
   } catch (error) {
-    console.error("Erro ao executar seeds:", error);
-    throw error;
+    console.error("Erro detalhado ao executar seeds:", error);
+    process.exitCode = 1;
+  } finally {
+    console.log("Desconectando Prisma Client...");
+    await prisma.$disconnect();
+    console.log("Prisma Client desconectado.");
   }
 }
 
 main()
-  .catch((e) => {
-    console.error("Erro ao executar seeds:", e);
-    process.exit(1);
+  .then(() => {
+    process.exit(process.exitCode ?? 0);
   })
-  .finally(async () => {
-    await prisma.$disconnect();
+  .catch((e) => {
+    console.error("Erro crítico durante a execução do script de seed:", e);
+    process.exit(1);
   }); 

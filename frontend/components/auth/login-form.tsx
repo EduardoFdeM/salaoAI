@@ -37,25 +37,24 @@ export function LoginForm() {
 
     try {
       const user = await login(data.email, data.password)
-      if (user && user.role) {
-        switch (user.role) {
-          case UserRole.SUPERUSER:
-          case UserRole.ADMIN:
-            router.push('/admin/dashboard')
-            break
-          case UserRole.SALON_OWNER:
-            router.push('/salon/dashboard')
-            break
-          case UserRole.PROFESSIONAL:
-            router.push('/professional/dashboard')
-            break
-          case UserRole.RECEPTIONIST:
-            router.push('/receptionist/dashboard')
-            break
-          default:
-            router.push('/login')
-        }
+      // Redireciona conforme a role retornada
+      let redirectPath = '/login'
+      switch (user.role) {
+        case UserRole.SUPERUSER:
+        case UserRole.ADMIN:
+          redirectPath = '/admin/dashboard'
+          break
+        case UserRole.SALON_OWNER:
+          redirectPath = '/salon/dashboard'
+          break
+        case UserRole.PROFESSIONAL:
+          redirectPath = '/professional/dashboard'
+          break
+        case UserRole.RECEPTIONIST:
+          redirectPath = '/receptionist/dashboard'
+          break
       }
+      router.push(redirectPath)
     } catch (error) {
       toast({
         title: "Erro no login",
