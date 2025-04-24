@@ -130,30 +130,51 @@ export class WhatsappService {
     const n8nUrl = this.configService.get<string>("N8N_WHATSAPP_REGISTER_URL");
     if (n8nUrl) {
       try {
-        const apiUrl = this.configService.get<string>("API_URL");
-        const callbackUrl = apiUrl
-          ? `${apiUrl}/api/whatsapp/qr-callback`
-          : undefined;
+        const apiUrl = this.configService.get<string>("API_URL") || "http://localhost:3333";
+        // Usar o callback explicitamente como está nas variáveis de ambiente
+        const callbackUrl = `${apiUrl}/api/whatsapp/qr-callback`;
+        
+        this.logger.log(`Enviando requisição para n8n: ${n8nUrl}`);
+        this.logger.log(`Callback URL: ${callbackUrl}`);
+        this.logger.log(`Payload: salonId=${salonId}, phone=${phone}, instanceName=${instanceName}`);
 
-        if (!callbackUrl) {
-          console.error(
-            "API_URL não configurada. Não é possível registrar instância no n8n.",
-          );
-        } else {
-          await axios.post(n8nUrl, {
+        // Fazer a chamada para o n8n
+        const response = await axios.post(n8nUrl, {
+          salonId,
+          phone,
+          instanceName,
+          callback_url: callbackUrl,
+        });
+        
+        this.logger.log(`Resposta do n8n: ${response.status} ${JSON.stringify(response.data)}`);
+        
+        // Atualizar status nas configurações
+        await this.prisma.salonSetting.upsert({
+          where: { 
+            salonId_key: {
+              salonId,
+              key: 'whatsappStatus'
+            }
+          },
+          create: {
             salonId,
-            phone,
-            instanceName,
-            callback_url: callbackUrl,
-          });
-        }
+            key: 'whatsappStatus',
+            value: 'CONNECTING'
+          },
+          update: {
+            value: 'CONNECTING'
+          }
+        });
       } catch (error) {
-        console.error(
-          "Erro ao chamar n8n para registrar instância:",
-          error.response?.data || error.message,
+        this.logger.error(
+          `Erro ao chamar n8n para registrar instância: ${error.message}`,
+          error.stack
         );
-        throw new Error("Falha ao registrar instância no N8N.");
+        throw new BadRequestException("Falha ao registrar instância no N8N. Verifique os logs para mais detalhes.");
       }
+    } else {
+      this.logger.error("URL do n8n não configurada (N8N_WHATSAPP_REGISTER_URL)");
+      throw new BadRequestException("URL do n8n não configurada.");
     }
 
     return {
@@ -386,6 +407,99 @@ export class WhatsappService {
           }
         },
       });
+    }
+  }
+
+  async registerInstanceDirect(salonId: string, phone: string) {
+    if (!phone.match(/^\d+$/)) {
+      throw new BadRequestException("Número de telefone inválido");
+    }
+
+    const instanceName = `salon_${salonId.replace(/-/g, "")}_${Date.now()}`;
+
+    // Url hardcoded do webhook para teste direto
+    const webhookUrl = "https://n8n.evergreenmkt.com.br/webhook-test/cria-instancia-salaoai";
+    // API URL para callback
+    const apiUrl = this.configService.get<string>("API_URL") || "https://1ed9-186-220-156-104.ngrok-free.app";
+    const callbackUrl = `${apiUrl}/api/whatsapp/qr-callback`;
+
+    this.logger.log(`Tentando chamada direta ao webhook: ${webhookUrl}`);
+    this.logger.log(`Callback: ${callbackUrl}`);
+    
+    try {
+      // Chamar o webhook diretamente
+      const response = await axios.post(webhookUrl, {
+        salonId, 
+        phone,
+        instanceName,
+        callback_url: callbackUrl
+      });
+      
+      this.logger.log(`Resposta do webhook: ${response.status}`);
+      this.logger.log(`Dados: ${JSON.stringify(response.data)}`);
+      
+      // Atualizar configurações
+      await this.prisma.salonSetting.upsert({
+        where: { 
+          salonId_key: {
+            salonId,
+            key: 'whatsappPhone'
+          }
+        },
+        create: {
+          salonId,
+          key: 'whatsappPhone',
+          value: phone
+        },
+        update: {
+          value: phone
+        }
+      });
+      
+      await this.prisma.salonSetting.upsert({
+        where: { 
+          salonId_key: {
+            salonId,
+            key: 'evolutionInstanceName'
+          }
+        },
+        create: {
+          salonId,
+          key: 'evolutionInstanceName',
+          value: instanceName
+        },
+        update: {
+          value: instanceName
+        }
+      });
+      
+      await this.prisma.salonSetting.upsert({
+        where: { 
+          salonId_key: {
+            salonId,
+            key: 'whatsappStatus'
+          }
+        },
+        create: {
+          salonId,
+          key: 'whatsappStatus',
+          value: 'CONNECTING'
+        },
+        update: {
+          value: 'CONNECTING'
+        }
+      });
+      
+      return {
+        success: true,
+        salonId,
+        phone,
+        instanceName,
+        directCall: true
+      };
+    } catch (error) {
+      this.logger.error(`Erro na chamada direta: ${error.message}`);
+      throw new BadRequestException(`Falha na chamada direta ao webhook: ${error.message}`);
     }
   }
 }

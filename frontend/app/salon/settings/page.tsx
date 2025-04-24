@@ -259,7 +259,9 @@ export default function SettingsPage() {
     // Combinar código do país com número local (apenas números)
     const fullPhone = countryCode.replace("+", "") + whatsappPhone.replace(/\D/g, "");
     
+    console.log(`Conectando WhatsApp: ${fullPhone}`);
     setConnecting(true);
+    
     try {
       const response = await fetch('/api/salon/connect-whatsapp', {
         method: 'POST',
@@ -269,9 +271,19 @@ export default function SettingsPage() {
         body: JSON.stringify({ phone: fullPhone }),
       });
       
+      console.log(`Status da resposta: ${response.status}`);
+      const data = await response.json();
+      console.log(`Dados da resposta:`, data);
+      
       if (!response.ok) {
-        throw new Error('Falha ao conectar WhatsApp');
+        throw new Error(data.message || 'Falha ao conectar WhatsApp');
       }
+      
+      toast({
+        title: "Processando",
+        description: "Gerando QR Code para conexão. Aguarde...",
+        variant: "default",
+      });
       
       // Iniciar polling para verificar QR code
       checkForQrCode();
@@ -279,7 +291,7 @@ export default function SettingsPage() {
       console.error('Erro ao conectar WhatsApp:', error);
       toast({
         title: "Erro",
-        description: "Não foi possível conectar o WhatsApp. Tente novamente.",
+        description: error.message || "Não foi possível conectar o WhatsApp. Tente novamente.",
         variant: "destructive",
       });
       setConnecting(false);
@@ -290,18 +302,26 @@ export default function SettingsPage() {
     if (!settings) return;
     
     try {
+      console.log('Verificando status do WhatsApp...');
       const response = await fetch('/api/salon/whatsapp-status');
+      
+      console.log(`Status da verificação: ${response.status}`);
       if (!response.ok) {
-        throw new Error('Falha ao verificar status');
+        const errorData = await response.json();
+        console.error(`Erro na resposta: ${JSON.stringify(errorData)}`);
+        throw new Error(errorData.message || 'Falha ao verificar status');
       }
       
       const data = await response.json();
+      console.log('Status do WhatsApp:', data);
       
       if (data.whatsappQrCode) {
+        console.log('QR Code recebido');
         setQrCode(data.whatsappQrCode);
       }
       
       if (data.whatsappStatus === 'CONNECTED') {
+        console.log('WhatsApp conectado com sucesso');
         setConnecting(false);
         setQrCode(null);
         toast({
@@ -318,14 +338,25 @@ export default function SettingsPage() {
         } : null);
       } else if (data.whatsappStatus === 'PENDING_QR' || data.whatsappStatus === 'CONNECTING') {
         // Continuar verificando
+        console.log(`Status ${data.whatsappStatus}, verificando novamente em 3 segundos...`);
         setTimeout(checkForQrCode, 3000);
       } else {
+        console.log(`Status desconhecido: ${data.whatsappStatus}`);
         setConnecting(false);
-        // Adicionar toast de erro
+        toast({
+          title: "Atenção",
+          description: `Status inesperado: ${data.whatsappStatus}`,
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Erro ao verificar QR code:', error);
       setConnecting(false);
+      toast({
+        title: "Erro",
+        description: error.message || "Falha ao verificar status do WhatsApp",
+        variant: "destructive",
+      });
     }
   };
 

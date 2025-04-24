@@ -1,12 +1,16 @@
-import { Controller, Get, Param, UseGuards, Request, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, Request, NotFoundException } from '@nestjs/common';
 import { SalonsService } from './salons.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { WhatsappService } from '../whatsapp/whatsapp.service';
 
 @ApiTags('salons')
-@Controller('api/salons')
+@Controller('api/salon')
 export class SalonsController {
-  constructor(private readonly salonsService: SalonsService) {}
+  constructor(
+    private readonly salonsService: SalonsService,
+    private readonly whatsappService: WhatsappService,
+  ) {}
 
   @Get('dashboard')
   @UseGuards(JwtAuthGuard)
@@ -101,5 +105,50 @@ export class SalonsController {
   @ApiResponse({ status: 200, description: 'Configurações do salão' })
   async getSalonSettings(@Param('id') id: string) {
     return this.salonsService.getSalonSettings(id);
+  }
+
+  @Post('connect-whatsapp')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Conectar WhatsApp ao salão' })
+  @ApiResponse({ status: 200, description: 'WhatsApp conectado com sucesso' })
+  @ApiResponse({ status: 404, description: 'Salão não encontrado' })
+  async connectWhatsapp(@Body() data: { phone: string }, @Request() req) {
+    if (!req.user || !req.user.id) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+
+    const salonId = req.user.salon_id;
+    if (!salonId) {
+      throw new NotFoundException('Salão não encontrado para este usuário');
+    }
+
+    // Tentar chamada direta ao webhook do n8n
+    try {
+      return await this.whatsappService.registerInstanceDirect(salonId, data.phone);
+    } catch (directError) {
+      // Se falhar a chamada direta, tentar o método padrão
+      console.error('Erro na chamada direta, tentando método padrão:', directError.message);
+      return this.whatsappService.registerInstance(salonId, data.phone);
+    }
+  }
+
+  @Get('whatsapp-status')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Verificar status do WhatsApp do salão' })
+  @ApiResponse({ status: 200, description: 'Status do WhatsApp' })
+  @ApiResponse({ status: 404, description: 'Salão não encontrado' })
+  async getWhatsappStatus(@Request() req) {
+    if (!req.user || !req.user.id) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+
+    const salonId = req.user.salon_id;
+    if (!salonId) {
+      throw new NotFoundException('Salão não encontrado para este usuário');
+    }
+
+    return this.whatsappService.getInstanceStatus(salonId);
   }
 } 

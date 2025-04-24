@@ -1,5 +1,5 @@
 // backend/src/whatsapp/whatsapp.controller.ts
-import { Controller, Post, Get, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, UseGuards, Inject, forwardRef } from '@nestjs/common';
 import { WhatsappService } from './whatsapp.service';
 import { AppointmentsService } from '../appointments/appointments.service';
 import { ClientsService } from '../clients/clients.service';
@@ -11,6 +11,7 @@ import { NotificationType } from '@prisma/client';
 export class WhatsappController {
   constructor(
     private readonly whatsappService: WhatsappService,
+    @Inject(forwardRef(() => AppointmentsService))
     private readonly appointmentsService: AppointmentsService,
     private readonly clientsService: ClientsService,
   ) {}

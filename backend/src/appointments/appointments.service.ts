@@ -5,6 +5,8 @@ import {
   NotFoundException,
   InternalServerErrorException,
   BadRequestException,
+  Inject,
+  forwardRef,
 } from "@nestjs/common";
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsappService } from '../whatsapp/whatsapp.service';
@@ -19,7 +21,8 @@ export class AppointmentsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly whatsappService: WhatsappService, // Injeta o WhatsappService
+    @Inject(forwardRef(() => WhatsappService))
+    private readonly whatsappService: WhatsappService, // Injeção circular
   ) {}
 
   async create(createAppointmentDto: CreateAppointmentDto) {
