@@ -1,5 +1,5 @@
 -- CreateEnum
-CREATE TYPE "Role" AS ENUM ('owner', 'professional', 'receptionist');
+CREATE TYPE "roles" AS ENUM ('FRANCHISE_OWNER', 'OWNER', 'PROFESSIONAL', 'RECEPTIONIST');
 
 -- CreateEnum
 CREATE TYPE "AppointmentStatus" AS ENUM ('PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED');
@@ -37,6 +37,9 @@ CREATE TYPE "NotificationType" AS ENUM ('REMINDER', 'CONFIRMATION', 'CANCELLATIO
 -- CreateEnum
 CREATE TYPE "NotificationStatus" AS ENUM ('PENDING', 'SENT', 'FAILED');
 
+-- CreateEnum
+CREATE TYPE "DiscountType" AS ENUM ('PERCENTAGE', 'FIXED_AMOUNT');
+
 -- CreateTable
 CREATE TABLE "users" (
     "id" TEXT NOT NULL,
@@ -66,6 +69,7 @@ CREATE TABLE "salons" (
     "active" BOOLEAN NOT NULL DEFAULT true,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
+    "franchise_id" TEXT,
 
     CONSTRAINT "salons_pkey" PRIMARY KEY ("id")
 );
@@ -75,7 +79,7 @@ CREATE TABLE "salon_users" (
     "id" TEXT NOT NULL,
     "user_id" TEXT NOT NULL,
     "salon_id" TEXT NOT NULL,
-    "role" "Role" NOT NULL,
+    "role" "roles" NOT NULL,
     "working_hours" JSONB,
     "active" BOOLEAN NOT NULL DEFAULT true,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -247,6 +251,7 @@ CREATE TABLE "salon_subscriptions" (
     "trial_end_date" TIMESTAMP(3),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
+    "coupon_id" TEXT,
 
     CONSTRAINT "salon_subscriptions_pkey" PRIMARY KEY ("id")
 );
@@ -312,6 +317,48 @@ CREATE TABLE "notifications" (
     CONSTRAINT "notifications_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "Coupon" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "description" TEXT,
+    "discountType" "DiscountType" NOT NULL,
+    "discountValue" DOUBLE PRECISION NOT NULL,
+    "maxUses" INTEGER,
+    "usedCount" INTEGER NOT NULL DEFAULT 0,
+    "validFrom" TIMESTAMP(3) NOT NULL,
+    "validUntil" TIMESTAMP(3),
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Coupon_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Franchise" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "logo_url" TEXT,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Franchise_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "FranchiseOwner" (
+    "id" TEXT NOT NULL,
+    "franchise_id" TEXT NOT NULL,
+    "user_id" TEXT NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "FranchiseOwner_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 
@@ -359,6 +406,12 @@ CREATE INDEX "payments_subscription_id_idx" ON "payments"("subscription_id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "salon_settings_salon_id_key_key" ON "salon_settings"("salon_id", "key");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Coupon_code_key" ON "Coupon"("code");
+
+-- AddForeignKey
+ALTER TABLE "salons" ADD CONSTRAINT "salons_franchise_id_fkey" FOREIGN KEY ("franchise_id") REFERENCES "Franchise"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "salon_users" ADD CONSTRAINT "salon_users_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -418,6 +471,9 @@ ALTER TABLE "salon_subscriptions" ADD CONSTRAINT "salon_subscriptions_salon_id_f
 ALTER TABLE "salon_subscriptions" ADD CONSTRAINT "salon_subscriptions_plan_id_fkey" FOREIGN KEY ("plan_id") REFERENCES "subscription_plans"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "salon_subscriptions" ADD CONSTRAINT "salon_subscriptions_coupon_id_fkey" FOREIGN KEY ("coupon_id") REFERENCES "Coupon"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "payments" ADD CONSTRAINT "payments_salon_id_fkey" FOREIGN KEY ("salon_id") REFERENCES "salons"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -443,3 +499,9 @@ ALTER TABLE "notifications" ADD CONSTRAINT "notifications_client_id_fkey" FOREIG
 
 -- AddForeignKey
 ALTER TABLE "notifications" ADD CONSTRAINT "notifications_professional_id_fkey" FOREIGN KEY ("professional_id") REFERENCES "salon_users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "FranchiseOwner" ADD CONSTRAINT "FranchiseOwner_franchise_id_fkey" FOREIGN KEY ("franchise_id") REFERENCES "Franchise"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "FranchiseOwner" ADD CONSTRAINT "FranchiseOwner_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

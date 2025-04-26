@@ -9,6 +9,7 @@ import { CreateUserDto } from '../users/dto/create-user.dto';
 export enum FrontendUserRole {
   SUPERUSER = "SUPERUSER",
   ADMIN = "ADMIN",
+  FRANCHISE_OWNER = "FRANCHISE_OWNER",
   SALON_OWNER = "SALON_OWNER",
   PROFESSIONAL = "PROFESSIONAL",
   RECEPTIONIST = "RECEPTIONIST"
@@ -16,6 +17,7 @@ export enum FrontendUserRole {
 
 // Mapeamento de papéis do Prisma para frontend
 const roleMapping = {
+  FRANCHISE_OWNER: FrontendUserRole.FRANCHISE_OWNER,
   OWNER: FrontendUserRole.SALON_OWNER,
   PROFESSIONAL: FrontendUserRole.PROFESSIONAL,
   RECEPTIONIST: FrontendUserRole.RECEPTIONIST

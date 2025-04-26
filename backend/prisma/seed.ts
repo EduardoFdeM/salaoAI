@@ -388,6 +388,63 @@ async function main() {
     console.log(`  - ${appointment2.id.substring(0,8)}... (${appointment2.status}) - ${client2.name} com Profissional ID ${appointment2.professionalId.substring(0,8)}...`);
     console.log("-------------------------------------------");
 
+    // Criar uma franquia de exemplo
+    console.log("Criando franquia de exemplo...");
+    const exampleFranchise = await prisma.franchise.create({
+      data: {
+        name: "Rede Beleza Brasil",
+        description: "Rede nacional de salões de beleza premium",
+        logoUrl: "https://exemplo.com/logos/belezabrasil.png",
+        active: true,
+      },
+    });
+    console.log(`Franquia criada: ${exampleFranchise.name} (ID: ${exampleFranchise.id})`);
+
+    // Criar usuário dono de franquia
+    const franchiseOwnerPasswordHash = await bcrypt.hash("franchise123", 10);
+    const franchiseOwnerUser = await prisma.user.create({
+      data: {
+        name: "Roberto Franquia",
+        email: "franchise@example.com",
+        phone: "11900000000",
+        passwordHash: franchiseOwnerPasswordHash,
+      },
+    });
+    console.log(`Dono de Franquia criado: ${franchiseOwnerUser.email}`);
+
+    // Associar usuário à franquia
+    await prisma.franchiseOwner.create({
+      data: {
+        franchiseId: exampleFranchise.id,
+        userId: franchiseOwnerUser.id,
+      }
+    });
+
+    // Associar salão existente à franquia
+    await prisma.salon.update({
+      where: { id: exampleSalon.id },
+      data: { franchiseId: exampleFranchise.id }
+    });
+
+    // Criar um segundo salão para a mesma franquia
+    const secondSalon = await prisma.salon.create({
+      data: {
+        name: "Beleza Total - Filial 2",
+        address: "Av. Paulista, 1000 - Centro",
+        phone: "11988887777",
+        email: "filial2@belezatotal.com",
+        logoUrl: null,
+        businessHours: businessHoursData,
+        notificationSettings: notificationSettingsData,
+        franchiseId: exampleFranchise.id,
+      },
+    });
+    console.log(`Segundo salão criado: ${secondSalon.name} (ID: ${secondSalon.id})`);
+
+    // Adicionar na seção de resumo final
+    console.log("  - Franquia:", exampleFranchise.name, `(ID: ${exampleFranchise.id})`);
+    console.log("  - Dono de Franquia:", franchiseOwnerUser.email, "/ franchise123");
+
   } catch (error) {
     console.error("Erro detalhado ao executar seeds:", error);
     process.exitCode = 1;

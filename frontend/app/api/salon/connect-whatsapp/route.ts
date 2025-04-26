@@ -5,8 +5,10 @@ import axios from 'axios';
 
 // URL do webhook do n8n direto (conforme variável de ambiente do backend)
 const N8N_WEBHOOK_URL = "https://n8n.evergreenmkt.com.br/webhook-test/cria-instancia-salaoai";
-// Callback URL para o QR code
+// Callback URL para o QR code - usar a URL real
 const CALLBACK_URL = process.env.NEXT_PUBLIC_API_URL || "https://1ed9-186-220-156-104.ngrok-free.app";
+// Base URL para webhook de mensagens
+const BOT_WEBHOOK_BASE = "https://n8n.evergreenmkt.com.br/webhook-test/botsalao";
 
 export async function POST(request: Request) {
   try {
@@ -40,15 +42,27 @@ export async function POST(request: Request) {
     console.log(`Enviando diretamente para webhook n8n: ${N8N_WEBHOOK_URL}`);
     
     // Gerar nome da instância
-    const instanceName = `salon_${salonId.replace(/-/g, "")}_${Date.now()}`;
+    const instanceName = `salon_${salonId.substring(0, 8)}`;
     
-    // Chamar diretamente o webhook do n8n
-    const response = await axios.post(N8N_WEBHOOK_URL, {
+    // Gerar URL do webhook para o bot do salão
+    const botWebhookUrl = `${BOT_WEBHOOK_BASE}-${salonId.substring(0, 8)}`;
+    
+    // Dados para enviar ao webhook
+    const webhookData = {
       salonId,
       phone,
       instanceName,
-      callback_url: `${CALLBACK_URL}/api/whatsapp/qr-callback`
-    });
+      callback_url: `${CALLBACK_URL}/api/whatsapp/qr-callback`,
+      bot_webhook_url: botWebhookUrl,
+      meta: {
+        salonId: salonId // Adicionado para ajudar o rastreamento
+      }
+    };
+    
+    console.log(`Enviando dados para webhook:`, webhookData);
+    
+    // Chamar diretamente o webhook do n8n
+    const response = await axios.post(N8N_WEBHOOK_URL, webhookData);
     
     console.log(`Resposta do webhook n8n: ${response.status}`);
     console.log(`Dados: ${JSON.stringify(response.data)}`);
@@ -62,9 +76,13 @@ export async function POST(request: Request) {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ phone }),
+        body: JSON.stringify({ 
+          phone,
+          instanceName,
+          bot_webhook_url: botWebhookUrl
+        }),
       });
-    } catch (backendError) {
+    } catch (backendError: any) {
       console.error('Erro ao comunicar com backend (não crítico):', backendError);
       // Continuar mesmo com erro no backend
     }
@@ -72,10 +90,11 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       message: 'Solicitação de conexão de WhatsApp enviada com sucesso',
-      instanceName
+      instanceName,
+      bot_webhook_url: botWebhookUrl
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro ao registrar WhatsApp:', error);
     return NextResponse.json(
       { 

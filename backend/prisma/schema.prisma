@@ -24,6 +24,7 @@ model User {
   salonUsers         SalonUser[]
   appointmentHistory AppointmentHistory[] @relation("ChangedByUser")
   reports            Report[]             @relation("CreatedByUser")
+  franchiseOwners    FranchiseOwner[]
 
   @@map("users")
 }
@@ -41,6 +42,7 @@ model Salon {
   active               Boolean                 @default(true)
   createdAt            DateTime                @default(now()) @map("created_at")
   updatedAt            DateTime                @updatedAt @map("updated_at")
+  franchiseId          String?                 @map("franchise_id")
 
   // Relações
   salonUsers         SalonUser[]
@@ -54,6 +56,7 @@ model Salon {
   chatbotConversations ChatbotConversation[]
   payments           Payment[]
   notifications      Notification[]
+  franchise          Franchise?                @relation(fields: [franchiseId], references: [id])
 
   @@map("salons")
 }
@@ -285,11 +288,13 @@ model SalonSubscription {
   trialEndDate  DateTime?           @map("trial_end_date")
   createdAt     DateTime            @default(now()) @map("created_at")
   updatedAt     DateTime            @updatedAt @map("updated_at")
+  couponId      String?             @map("coupon_id")
 
   // Relações
-  salon    Salon           @relation(fields: [salonId], references: [id])
-  plan     SubscriptionPlan @relation(fields: [planId], references: [id])
-  payments Payment[]
+  salon       Salon                @relation(fields: [salonId], references: [id])
+  plan        SubscriptionPlan     @relation(fields: [planId], references: [id])
+  payments    Payment[]
+  coupon      Coupon?              @relation(fields: [couponId], references: [id])
 
   @@index([salonId, status])
   @@map("salon_subscriptions")
@@ -372,10 +377,57 @@ model Notification {
   @@map("notifications")
 }
 
+model Coupon {
+  id            String   @id @default(uuid())
+  code          String   @unique
+  description   String?
+  discountType  DiscountType // PERCENTAGE ou FIXED_AMOUNT
+  discountValue Float
+  maxUses       Int?
+  usedCount     Int      @default(0)
+  validFrom     DateTime
+  validUntil    DateTime?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  
+  // Relações
+  subscriptions SalonSubscription[]
+}
+
+model Franchise {
+  id           String   @id @default(uuid())
+  name         String
+  description  String?
+  logoUrl      String?  @map("logo_url")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relações
+  salons       Salon[]
+  owners       FranchiseOwner[]
+}
+
+model FranchiseOwner {
+  id           String   @id @default(uuid())
+  franchiseId  String   @map("franchise_id")
+  userId       String   @map("user_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relações
+  franchise    Franchise @relation(fields: [franchiseId], references: [id])
+  user         User      @relation(fields: [userId], references: [id])
+}
+
 enum Role {
-  OWNER        @map("owner")
-  PROFESSIONAL @map("professional")
-  RECEPTIONIST @map("receptionist")
+  FRANCHISE_OWNER
+  OWNER
+  PROFESSIONAL
+  RECEPTIONIST
+
+  @@map("roles")
 }
 
 enum AppointmentStatus {
@@ -452,4 +504,9 @@ enum NotificationStatus {
   PENDING
   SENT
   FAILED
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
 }

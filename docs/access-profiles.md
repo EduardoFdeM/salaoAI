@@ -123,6 +123,82 @@ O recepcionista gerencia o atendimento aos clientes e pode:
   - Emitir recibos
   - Fechar caixa diário
 
+## Perfil de Dono de Franquia (`FRANCHISE_OWNER`)
+
+O dono de franquia gerencia uma rede de salões e pode:
+
+- **Dashboard da Franquia**:
+
+  - Visualizar métricas consolidadas de todos os salões
+  - Acompanhar crescimento da rede
+  - Identificar tendências entre diferentes unidades
+
+- **Gestão de Salões**:
+
+  - Visualizar todos os salões da franquia
+  - Acessar cada salão individualmente
+  - Configurar políticas comuns para todos os salões
+
+- **Configurações da Franquia**:
+
+  - Definir identidade visual padronizada
+  - Estabelecer catálogo de serviços comum
+  - Configurar preços sugeridos
+  - Definir políticas de atendimento
+
+- **Relatórios Consolidados**:
+
+  - Comparativos entre unidades
+  - Desempenho financeiro global
+  - Análise de ocupação e eficiência
+
+- **Gestão de Conhecimento**:
+  - Distribuir materiais de treinamento
+  - Compartilhar boas práticas entre unidades
+  - Comunicar-se com todos os gerentes
+
+### Simulação de Uso: Dono de Franquia
+Fluxo Principal:
+1. Login: Dono de franquia faz login com suas credenciais
+
+2. Dashboard da Franquia: É redirecionado para a visão geral da franquia, mostrando:
+* Total de agendamentos em toda a rede
+* Faturamento consolidado
+* Ranking de salões por desempenho
+* Alertas de problemas em qualquer unidade
+
+3. Navegação entre Salões:
+* Seleciona um salão específico do menu lateral
+* Visualiza dados detalhados daquele salão
+* Pode fazer alterações específicas para aquela unidade
+
+4. Aplicação de Políticas Globais:
+* Acessa "Configurações de Franquia"
+* Define um novo serviço padrão que aparecerá em todos os salões
+* Configura um desconto promocional para toda a rede
+
+### Casos Especiais:
+1. Dono de Franquia que também é Dono de Salão
+* Sistema identifica os dois papéis durante login
+* Oferece opção de alternar entre visão de franquia e visão de salão específico
+* Mantém permissões adequadas em cada contexto
+2. Acesso Hierárquico
+* Um diretor regional poderia ter acesso apenas aos salões de sua região
+* Configurável através de subgrupos de salões dentro da franquia
+
+### Funcionalidades Adicionais Desejáveis
+1. Programa de Fidelidade Unificado:
+* Cliente pode acumular pontos em qualquer unidade
+* Histórico de atendimento centralizado
+2. Central de Agendamentos:
+* Sistema poderia redirecionar clientes para salões com disponibilidade
+* Balanceamento de carga entre unidades próximas
+3. Métricas Avançadas para Franquias:
+* Análise de desempenho comparativa
+* Previsões de crescimento baseadas em dados históricos
+* Identificação de unidades que precisam de suporte
+___
+
 ## Fluxos de Acesso
 
 ### Fluxo de Acesso do Administrador

@@ -415,7 +415,7 @@ export class WhatsappService {
       throw new BadRequestException("Número de telefone inválido");
     }
 
-    const instanceName = `salon_${salonId.replace(/-/g, "")}_${Date.now()}`;
+    const instanceName = `salon_${salonId.substring(0, 8)}`;
 
     // Url hardcoded do webhook para teste direto
     const webhookUrl = "https://n8n.evergreenmkt.com.br/webhook-test/cria-instancia-salaoai";

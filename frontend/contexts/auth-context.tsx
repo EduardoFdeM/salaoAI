@@ -105,6 +105,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       case 'SUPERUSER':
       case 'ADMIN':
         return '/admin/dashboard'
+      case 'FRANCHISE_OWNER':
+        return '/franchise/dashboard'
       case 'SALON_OWNER':
         return '/salon/dashboard'
       case 'PROFESSIONAL':

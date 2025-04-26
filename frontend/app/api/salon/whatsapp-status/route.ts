@@ -51,8 +51,20 @@ export async function GET() {
       );
     }
 
-    return NextResponse.json(data);
-  } catch (error) {
+    // Formatar os dados para a resposta
+    const responseData = {
+      whatsappStatus: data.whatsappStatus || 'DISCONNECTED',
+      whatsappQrCode: data.whatsappQrCode || null,
+      whatsappPhone: data.whatsappPhone || null,
+      evolutionInstanceName: data.evolutionInstanceName || null,
+      whatsappPairingCode: data.whatsappPairingCode || null,
+      whatsappConnected: data.whatsappStatus === 'CONNECTED'
+    };
+
+    console.log('Dados formatados para frontend:', responseData);
+
+    return NextResponse.json(responseData);
+  } catch (error: any) {
     console.error('Erro ao verificar status do WhatsApp:', error);
     return NextResponse.json(
       { message: error?.message || 'Erro interno do servidor' },
