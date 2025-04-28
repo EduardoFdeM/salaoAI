@@ -15,6 +15,8 @@ interface DashboardData {
   clients: number;
   dailyRevenue: number;
   monthlyRevenue: number;
+  topServices: any[];
+  topProfessionals: any[];
 }
 
 export default function SalonDashboard() {
@@ -66,16 +68,29 @@ export default function SalonDashboard() {
     </div>
   }
 
-  // Usando dados mockados enquanto integramos com o backend
-  const data = dashboardData || {
-    totalAppointments: 248,
-    todayAppointmentsCount: 8,
+  // Usando os dados da API
+  const {
+    totalAppointments,
+    todayAppointmentsCount,
+    todayAppointments,
+    professionals,
+    services,
+    clients,
+    dailyRevenue,
+    monthlyRevenue,
+    topServices,
+    topProfessionals
+  } = dashboardData || {
+    totalAppointments: 0,
+    todayAppointmentsCount: 0,
     todayAppointments: [],
-    professionals: 5,
-    services: 12,
-    clients: 184,
-    dailyRevenue: 620,
-    monthlyRevenue: 12400
+    professionals: 0,
+    services: 0,
+    clients: 0,
+    dailyRevenue: 0,
+    monthlyRevenue: 0,
+    topServices: [],
+    topProfessionals: []
   }
 
   return (
@@ -101,9 +116,9 @@ export default function SalonDashboard() {
                 <Calendar className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{data.todayAppointmentsCount}</div>
+                <div className="text-2xl font-bold">{todayAppointmentsCount}</div>
                 <p className="text-xs text-muted-foreground">
-                  Total de {data.totalAppointments} agendamentos
+                  Total de {totalAppointments} agendamentos
                 </p>
               </CardContent>
             </Card>
@@ -114,7 +129,7 @@ export default function SalonDashboard() {
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">R$ {data.dailyRevenue.toFixed(2)}</div>
+                <div className="text-2xl font-bold">R$ {dailyRevenue.toFixed(2)}</div>
                 <p className="text-xs text-muted-foreground">
                   +10.1% em relação a ontem
                 </p>
@@ -127,7 +142,7 @@ export default function SalonDashboard() {
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{data.clients}</div>
+                <div className="text-2xl font-bold">{clients}</div>
                 <p className="text-xs text-muted-foreground">
                   +2 novos clientes hoje
                 </p>
@@ -140,7 +155,7 @@ export default function SalonDashboard() {
                 <ShoppingBag className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">R$ {data.monthlyRevenue.toFixed(2)}</div>
+                <div className="text-2xl font-bold">R$ {monthlyRevenue.toFixed(2)}</div>
                 <p className="text-xs text-muted-foreground">
                   +18.2% em relação ao mês anterior
                 </p>
@@ -154,7 +169,7 @@ export default function SalonDashboard() {
               <CardHeader>
                 <CardTitle>Serviços</CardTitle>
                 <CardDescription>
-                  Você tem {data.services} serviços ativos
+                  Você tem {services} serviços ativos
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -167,10 +182,10 @@ export default function SalonDashboard() {
                       Top serviços do mês:
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      1. Corte Feminino
+                      1. {topServices[0]?.name || 'Serviço'}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      2. Coloração
+                      2. {topServices[1]?.name || 'Serviço'}
                     </p>
                 </div>
                 </div>
@@ -181,7 +196,7 @@ export default function SalonDashboard() {
               <CardHeader>
                 <CardTitle>Profissionais</CardTitle>
                 <CardDescription>
-                  Você tem {data.professionals} profissionais ativos
+                  Você tem {professionals} profissionais ativos
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -195,7 +210,7 @@ export default function SalonDashboard() {
                         Mais agendados:
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        Maria Silva (10)
+                        {topProfessionals[0]?.name || 'Profissional'}
                       </p>
                 </div>
                     <div className="space-y-1">
@@ -203,7 +218,7 @@ export default function SalonDashboard() {
                         Hoje disponíveis:
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {data.professionals} profissionais
+                        {professionals} profissionais
                       </p>
               </div>
             </div>
@@ -217,13 +232,13 @@ export default function SalonDashboard() {
             <CardHeader>
               <CardTitle>Próximos Agendamentos</CardTitle>
               <CardDescription>
-                Agendamentos para hoje ({data.todayAppointmentsCount})
+                Agendamentos para hoje ({todayAppointmentsCount})
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {data.todayAppointments && data.todayAppointments.length > 0 ? (
+              {todayAppointments && todayAppointments.length > 0 ? (
                 <div className="space-y-4">
-                  {data.todayAppointments.slice(0, 5).map((appointment, idx) => (
+                  {todayAppointments.slice(0, 5).map((appointment, idx) => (
                     <div key={idx} className="flex items-center">
                       <div className="mr-4 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
                         <Clock className="h-5 w-5 text-primary" />

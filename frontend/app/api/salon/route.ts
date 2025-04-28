@@ -17,8 +17,8 @@ export async function GET() {
       );
     }
 
-    // Fazer requisição para o backend
-    const response = await fetch(`${API_URL}/api/salons/my-salon`, {
+    // Fazer requisição para o backend - corrigido o caminho da API
+    const response = await fetch(`${API_URL}/api/salon/my-salon`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,

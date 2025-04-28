@@ -91,6 +91,8 @@ export interface Client {
   phone: string;
   email?: string | null;
   notes?: string | null;
+  observations?: string | null;
+  last_visit?: string | null;
   version: number;
   created_at: string;
   updated_at: string;

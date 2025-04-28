@@ -1,12 +1,25 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { Salon, SalonUser, Role } from '@prisma/client';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import {
+  Salon,
+  SalonUser,
+  Role,
+  Prisma,
+  AppointmentStatus,
+} from "@prisma/client";
 
 @Injectable()
 export class SalonsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getSalonDashboardData(userId: string, salonId: string | null | undefined) {
+  async getSalonDashboardData(
+    userId: string,
+    salonId: string | null | undefined,
+  ) {
     // Se não tiver salonId no token, tenta buscar
     if (!salonId) {
       const salon = await this.getSalonByUserId(userId);
@@ -24,20 +37,17 @@ export class SalonsService {
       professionals,
       services,
       clients,
-      // Buscar outros dados necessários para o dashboard
     ] = await Promise.all([
       // Total de agendamentos
       this.prisma.appointment.count({
-        where: { 
+        where: {
           salonId,
-          // active: true // Remover propriedade que não existe
-        }
+        },
       }),
       // Agendamentos do dia
       this.prisma.appointment.findMany({
         where: {
           salonId,
-          // active: true, // Remover propriedade que não existe
           startTime: {
             gte: new Date(new Date().setHours(0, 0, 0, 0)),
             lt: new Date(new Date().setHours(23, 59, 59, 999)),
@@ -60,16 +70,15 @@ export class SalonsService {
       }),
       // Serviços
       this.prisma.service.count({
-        where: { 
+        where: {
           salonId,
-          active: true
+          active: true,
         },
       }),
       // Clientes
       this.prisma.client.count({
-        where: { 
+        where: {
           salonId,
-          // active: true // Remover propriedade que não existe
         },
       }),
     ]);
@@ -94,6 +103,8 @@ export class SalonsService {
       dailyRevenue,
       monthlyRevenue,
       // Outros dados relevantes para o dashboard
+      topServices: [], // Placeholder
+      topProfessionals: [], // Placeholder
     };
   }
 
@@ -134,7 +145,7 @@ export class SalonsService {
       },
     });
 
-    const settingsObject = {};
+    const settingsObject: { [key: string]: any } = {};
     settings.forEach((setting) => {
       settingsObject[setting.key] = setting.value;
     });
@@ -213,12 +224,23 @@ export class SalonsService {
     };
   }
 
-  async findSalonAppointments(salonId: string, userId: string, filters?: any) {
+  async findSalonAppointments(
+    salonId: string,
+    userId: string,
+    filters?: {
+      startDate?: string;
+      endDate?: string;
+      status?: AppointmentStatus;
+      professionalId?: string;
+      clientId?: string;
+      serviceId?: string;
+    },
+  ) {
     // Verificar se o usuário tem acesso ao salão
     await this.validateUserSalonAccess(userId, salonId);
 
     // Construir a query com filtros
-    const where: any = {
+    const where: Prisma.AppointmentWhereInput = {
       salonId,
     };
 
@@ -233,9 +255,21 @@ export class SalonsService {
 
       // Filtro por data de fim
       if (filters.endDate) {
-        where.endTime = {
-          lte: new Date(filters.endDate),
-        };
+        const endDate = new Date(filters.endDate);
+        if (
+          where.startTime &&
+          typeof where.startTime === "object" &&
+          "gte" in where.startTime
+        ) {
+          // Se já existe um filtro gte, adiciona lte
+          where.startTime = { ...where.startTime, lte: endDate };
+        } else if (where.startTime instanceof Date) {
+          // Se startTime é apenas uma data (do filtro gte anterior), cria o objeto
+          where.startTime = { gte: where.startTime, lte: endDate };
+        } else {
+          // Se não há filtro gte, define apenas lte
+          where.startTime = { lte: endDate };
+        }
       }
 
       // Filtro por status
@@ -266,7 +300,7 @@ export class SalonsService {
         professional: {
           include: {
             user: true,
-          }
+          },
         },
         service: true,
       },
@@ -277,28 +311,27 @@ export class SalonsService {
 
     // Transformar para o formato de resposta
     return appointments.map((appointment) => {
-      // Usar type assertion para informar ao TypeScript sobre a estrutura
-      const client = appointment['client'] as any;
-      const service = appointment['service'] as any;
-      const professional = appointment['professional'] as any;
-      const professionalUser = professional?.user as any;
+      const client = appointment.client;
+      const service = appointment.service;
+      const professionalUserRelation = appointment.professional;
+      const professionalUser = professionalUserRelation?.user;
 
       return {
         id: appointment.id,
-        title: `${service.name} - ${client.name}`,
+        title: `${service?.name || "Serviço desconhecido"} - ${client?.name || "Cliente desconhecido"}`,
         start: appointment.startTime,
         end: appointment.endTime,
         description: appointment.notes || "",
         status: appointment.status,
-        price: appointment.price || service.price,
+        price: appointment.price || service?.price || 0,
         clientId: appointment.clientId,
-        clientName: client.name,
-        clientEmail: client.email,
-        clientPhone: client.phone,
+        clientName: client?.name,
+        clientEmail: client?.email,
+        clientPhone: client?.phone,
         professionalId: appointment.professionalId,
         professionalName: professionalUser?.name,
         serviceId: appointment.serviceId,
-        serviceName: service.name,
+        serviceName: service?.name,
       };
     });
   }
@@ -309,7 +342,10 @@ export class SalonsService {
    * @param salonId ID do salão
    * @throws ForbiddenException se o usuário não tiver acesso ao salão
    */
-  async validateUserSalonAccess(userId: string, salonId: string): Promise<void> {
+  async validateUserSalonAccess(
+    userId: string,
+    salonId: string,
+  ): Promise<void> {
     const salonUser = await this.prisma.salonUser.findFirst({
       where: {
         userId,
@@ -319,7 +355,7 @@ export class SalonsService {
     });
 
     if (!salonUser) {
-      throw new ForbiddenException('Usuário não tem acesso a este salão');
+      throw new ForbiddenException("Usuário não tem acesso a este salão");
     }
   }
 } 

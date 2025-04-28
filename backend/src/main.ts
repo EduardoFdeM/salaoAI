@@ -14,6 +14,10 @@ async function bootstrap() {
 
   // Configurar pasta pública
   app.useStaticAssets(join(__dirname, '..', 'public'));
+  // Configurar pasta de uploads como estática
+  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
+    prefix: '/uploads/', // Acessar via /uploads/avatars/...
+  });
 
   // Configuração global de pipes
   app.useGlobalPipes(

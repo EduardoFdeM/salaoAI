@@ -17,8 +17,8 @@ export async function GET() {
       );
     }
 
-    // Fazer requisição para o backend para obter dados do dashboard
-    const response = await fetch(`${API_URL}/api/salons/dashboard`, {
+    // Fazer requisição para o backend - corrigido o caminho da API
+    const response = await fetch(`${API_URL}/api/salon/dashboard`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,

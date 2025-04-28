@@ -1,25 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { getToken, getUserFromToken } from '@/lib/auth';
 
 // URL do backend
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333';
-
-// Helper para obter o token
-const getToken = () => {
-  const cookieStore = cookies();
-  return cookieStore.get('token')?.value;
-};
-
-// Helper para verificar autenticação
-const checkAuth = (token: string | undefined) => {
-  if (!token) {
-    return NextResponse.json(
-      { message: 'Não autorizado' },
-      { status: 401 }
-    );
-  }
-  return null;
-};
 
 // Obter serviço específico
 export async function GET(
@@ -27,9 +11,16 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const token = getToken();
-    const authResponse = checkAuth(token);
-    if (authResponse) return authResponse;
+    // Obter o token e o usuário
+    const token = getToken({ cookies: cookies() });
+    const user = getUserFromToken({ cookies: cookies() });
+    
+    if (!token || !user) {
+      return NextResponse.json(
+        { error: 'Não autorizado' }, 
+        { status: 401 }
+      );
+    }
 
     const { id } = params;
 
@@ -48,7 +39,7 @@ export async function GET(
     // Se a resposta não foi bem-sucedida, retornar o erro
     if (!response.ok) {
       return NextResponse.json(
-        { message: data.message || 'Erro ao obter serviço' },
+        { error: data.message || 'Erro ao obter serviço' },
         { status: response.status }
       );
     }
@@ -58,7 +49,7 @@ export async function GET(
   } catch (error) {
     console.error('Erro ao obter serviço:', error);
     return NextResponse.json(
-      { message: 'Erro interno do servidor' },
+      { error: 'Erro interno do servidor' },
       { status: 500 }
     );
   }
@@ -70,9 +61,16 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const token = getToken();
-    const authResponse = checkAuth(token);
-    if (authResponse) return authResponse;
+    // Obter o token e o usuário
+    const token = getToken({ cookies: cookies() });
+    const user = getUserFromToken({ cookies: cookies() });
+    
+    if (!token || !user) {
+      return NextResponse.json(
+        { error: 'Não autorizado' }, 
+        { status: 401 }
+      );
+    }
 
     const { id } = params;
     const serviceData = await request.json();
@@ -93,7 +91,7 @@ export async function PUT(
     // Se a resposta não foi bem-sucedida, retornar o erro
     if (!response.ok) {
       return NextResponse.json(
-        { message: data.message || 'Erro ao atualizar serviço' },
+        { error: data.message || 'Erro ao atualizar serviço' },
         { status: response.status }
       );
     }
@@ -103,7 +101,7 @@ export async function PUT(
   } catch (error) {
     console.error('Erro ao atualizar serviço:', error);
     return NextResponse.json(
-      { message: 'Erro interno do servidor' },
+      { error: 'Erro interno do servidor' },
       { status: 500 }
     );
   }
@@ -115,9 +113,16 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const token = getToken();
-    const authResponse = checkAuth(token);
-    if (authResponse) return authResponse;
+    // Obter o token e o usuário
+    const token = getToken({ cookies: cookies() });
+    const user = getUserFromToken({ cookies: cookies() });
+    
+    if (!token || !user) {
+      return NextResponse.json(
+        { error: 'Não autorizado' }, 
+        { status: 401 }
+      );
+    }
 
     const { id } = params;
 
@@ -135,12 +140,12 @@ export async function DELETE(
       try {
         const errorData = await response.json();
         return NextResponse.json(
-          { message: errorData.message || 'Erro ao excluir serviço' },
+          { error: errorData.message || 'Erro ao excluir serviço' },
           { status: response.status }
         );
       } catch (e) {
         return NextResponse.json(
-          { message: 'Erro ao excluir serviço' },
+          { error: 'Erro ao excluir serviço' },
           { status: response.status }
         );
       }
@@ -151,7 +156,7 @@ export async function DELETE(
   } catch (error) {
     console.error('Erro ao excluir serviço:', error);
     return NextResponse.json(
-      { message: 'Erro interno do servidor' },
+      { error: 'Erro interno do servidor' },
       { status: 500 }
     );
   }

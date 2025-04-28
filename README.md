@@ -258,7 +258,7 @@ Para testar o sistema, utilize as seguintes credenciais:
 Usuários de Teste:
   - Superusuário: superuser@example.com / superuser123
   - Admin: admin@example.com / admin123
-Salão: Salão Beleza Total (ID: 05f85e09-48a1-4f0b-aeac-19cc42cb9c46)
+Salão: Salão Beleza Total (ID: 64cc5f9b-7483-44ea-9d0a-b4d37563783f)
   - Dono Genérico: salon@example.com / salon123
   - Profissional Genérico: professional@example.com / professional123
   - Recepcionista Genérico: receptionist@example.com / receptionist123
@@ -271,8 +271,15 @@ Clientes:
   - Fernanda Lima (11987654321)
   - Ricardo Alves (11912345678)
 Agendamentos:
-  - e0ba525d... (CONFIRMED) - Fernanda Lima com Profissional ID 54f273ff...
-  - 00156496... (PENDING) - Ricardo Alves com Profissional ID 4140e7ca...
+  - 7700de90... (CONFIRMED) - Fernanda Lima com Profissional ID ba097549...
+  - edb1ec30... (PENDING) - Ricardo Alves com Profissional ID ce55e26a...
+-------------------------------------------
+Criando franquia de exemplo...
+Franquia criada: Rede Beleza Brasil (ID: 588e4ed4-794d-425e-8518-96329790c7a6)
+Dono de Franquia criado: franchise@example.com
+Segundo salão criado: Beleza Total - Filial 2 (ID: ce8a6ef7-0a1f-4844-bd24-e9dd2a139ae1)
+  - Franquia: Rede Beleza Brasil (ID: 588e4ed4-794d-425e-8518-96329790c7a6)
+  - Dono de Franquia: franchise@example.com / franchise123
 
 ### Iniciar Frontend
 

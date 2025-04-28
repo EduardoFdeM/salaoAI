@@ -12,7 +12,7 @@ export enum FrontendUserRole {
   FRANCHISE_OWNER = "FRANCHISE_OWNER",
   SALON_OWNER = "SALON_OWNER",
   PROFESSIONAL = "PROFESSIONAL",
-  RECEPTIONIST = "RECEPTIONIST"
+  RECEPTIONIST = "RECEPTIONIST",
 }
 
 // Mapeamento de papéis do Prisma para frontend
@@ -20,7 +20,7 @@ const roleMapping = {
   FRANCHISE_OWNER: FrontendUserRole.FRANCHISE_OWNER,
   OWNER: FrontendUserRole.SALON_OWNER,
   PROFESSIONAL: FrontendUserRole.PROFESSIONAL,
-  RECEPTIONIST: FrontendUserRole.RECEPTIONIST
+  RECEPTIONIST: FrontendUserRole.RECEPTIONIST,
 };
 
 interface JwtPayload {
@@ -132,7 +132,7 @@ export class AuthService {
    */
   async getUserFromToken(token: string): Promise<User | null> {
     try {
-      const payload = this.jwtService.verify(token);
+      const payload: JwtPayload = this.jwtService.verify(token);
       if (payload && payload.sub) {
         return this.usersService.findOne(payload.sub);
       }
