@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { PhoneInput } from '@/components/ui/phone-input'
 import { useAuth } from '@/contexts/auth-context'
 import { UserRole } from '@/types/auth'
 import { SalonSettings, SettingsFormData } from '@/types/salon' // Importar tipos
@@ -111,34 +111,23 @@ const DayScheduleInput = ({
   )
 }
 
-// Adicionar array de países para DDI
-const COUNTRY_CODES = [
-  { code: "+55", country: "Brasil", flag: "🇧🇷" },
-  { code: "+1", country: "EUA", flag: "🇺🇸" },
-  { code: "+595", country: "Paraguai", flag: "🇵🇾" },
-  { code: "+598", country: "Uruguai", flag: "🇺🇾" },
-  { code: "+351", country: "Portugal", flag: "🇵🇹" },
-  { code: "+34", country: "Espanha", flag: "🇪🇸" },
-];
-
 export default function SettingsPage() {
   const { user } = useAuth()
   const [settings, setSettings] = useState<SettingsFormData | null>(null) // Usar FormData
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [whatsappPhone, setWhatsappPhone] = useState('');
+  const [whatsappPhone, setWhatsappPhone] = useState(''); // Apenas números
+  const [whatsappCountryCode, setWhatsappCountryCode] = useState('+55'); // Estado para o código do país
   const [connecting, setConnecting] = useState(false);
   const [qrCode, setQrCode] = useState<string | null>(null);
   const { toast } = useToast();
-  const [countryCode, setCountryCode] = useState("+55");
-  const [formattedPhone, setFormattedPhone] = useState("");
 
   // Carregar configurações da API (simulado)
-  useState(() => {
+  useEffect(() => {
     setLoading(true);
     // Simular fetch
     setTimeout(() => {
-      setSettings({
+      const fetchedSettings = {
          business_hours: MOCK_SETTINGS.business_hours,
          appointment_interval: MOCK_SETTINGS.appointment_interval,
          booking_lead_time: MOCK_SETTINGS.booking_lead_time,
@@ -149,18 +138,43 @@ export default function SettingsPage() {
          ai_bot_model: MOCK_SETTINGS.ai_bot_model,
          ai_bot_prompt_template: MOCK_SETTINGS.ai_bot_prompt_template,
          ai_bot_enabled: MOCK_SETTINGS.ai_bot_enabled,
-      });
+         // Simular busca de telefone conectado, se houver
+         whatsappConnected: false, // Exemplo: inicialmente não conectado
+         whatsappPhone: '', // Exemplo: sem número salvo
+      };
+      setSettings(fetchedSettings);
+      // Se houver um telefone conectado salvo, inicializar o estado
+      if (fetchedSettings.whatsappConnected && fetchedSettings.whatsappPhone) {
+          // Extrair código do país e número (simplificado, pode precisar de lógica melhor)
+          // Assumindo que o número salvo pode ou não incluir o DDI
+          // Esta parte pode precisar de ajuste dependendo de como o número é salvo no backend
+          const phoneDigits = fetchedSettings.whatsappPhone.replace(/\D/g, '');
+          // Tentar detectar DDI (exemplo simples para +55)
+          if (phoneDigits.startsWith('55') && phoneDigits.length > 11) {
+              setWhatsappCountryCode('+55');
+              setWhatsappPhone(phoneDigits.substring(2));
+          } else {
+              // Assume DDI padrão ou lógica mais complexa necessária
+              setWhatsappPhone(phoneDigits);
+          }
+      }
       setLoading(false);
     }, 500);
-  });
+  }, []); // Adicionar array de dependência vazio
 
   const handleInputChange = (field: keyof SettingsFormData, value: any) => {
     setSettings(prev => prev ? { ...prev, [field]: value } : null);
   }
   
   const handleBusinessHoursChange = (day: keyof SettingsFormData['business_hours'], field: string, value: any) => {
-      // Lógica mais complexa para atualizar horários (precisa de UI específica)
       console.log("Atualizar horário:", day, field, value);
+      // Lógica de atualização...
+       setSettings(prev => {
+        if (!prev) return null;
+        const updatedHours = { ...prev.business_hours };
+        // Implementar a lógica de atualização profunda aqui
+        return { ...prev, business_hours: updatedHours };
+    });
   }
 
   const handleSave = async (tab: string) => {
@@ -169,7 +183,7 @@ export default function SettingsPage() {
     // Simular chamada API
     await new Promise(resolve => setTimeout(resolve, 1000));
     setSaving(false);
-    // Adicionar toast de sucesso/erro
+    toast({ title: "Sucesso", description: `Configurações da aba ${tab} salvas!` });
   }
 
   // Apenas Dono do Salão pode editar configurações
@@ -179,88 +193,16 @@ export default function SettingsPage() {
      return <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">Carregando configurações...</div>;
    }
 
-  // Adicione esta função para formatar o número
-  const formatPhoneNumber = (value: string, country: string) => {
-    // Remover qualquer caractere não numérico
-    const numbers = value.replace(/\D/g, "");
-    
-    // Formatação para Brasil (+55)
-    if (country === "+55") {
-      if (numbers.length <= 2) {
-        return numbers;
-      }
-      if (numbers.length <= 7) {
-        return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
-      }
-      if (numbers.length <= 11) {
-        return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7)}`;
-      }
-      return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
-    }
-    
-    // EUA (+1)
-    if (country === "+1") {
-      if (numbers.length <= 3) {
-        return numbers;
-      }
-      if (numbers.length <= 6) {
-        return `(${numbers.slice(0, 3)}) ${numbers.slice(3)}`;
-      }
-      if (numbers.length <= 10) {
-        return `(${numbers.slice(0, 3)}) ${numbers.slice(3, 6)}-${numbers.slice(6)}`;
-      }
-      return `(${numbers.slice(0, 3)}) ${numbers.slice(3, 6)}-${numbers.slice(6, 10)}`;
-    }
-    
-    // Formatação para Espanha (+34)
-    if (country === "+34") {
-      if (numbers.length <= 3) {
-        return numbers;
-      }
-      if (numbers.length <= 6) {
-        return `${numbers.slice(0, 3)} ${numbers.slice(3)}`;
-      }
-      if (numbers.length <= 9) {
-        return `${numbers.slice(0, 3)} ${numbers.slice(3, 6)} ${numbers.slice(6)}`;
-      }
-      return `${numbers.slice(0, 3)} ${numbers.slice(3, 6)} ${numbers.slice(6, 9)}`;
-    }
-    
-    // Formatação para Portugal (+351), Paraguai (+595) e Uruguai (+598)
-    if (country === "+351" || country === "+595" || country === "+598") {
-      if (numbers.length <= 3) {
-        return numbers;
-      }
-      if (numbers.length <= 6) {
-        return `${numbers.slice(0, 3)} ${numbers.slice(3)}`;
-      }
-      if (numbers.length <= 9) {
-        return `${numbers.slice(0, 3)} ${numbers.slice(3, 6)} ${numbers.slice(6)}`;
-      }
-      return `${numbers.slice(0, 3)} ${numbers.slice(3, 6)} ${numbers.slice(6, 9)}`;
-    }
-    
-    // Formato padrão para outros países
-    return numbers;
-  };
-
-  // Função para lidar com a mudança no número
-  const handlePhoneChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatPhoneNumber(e.target.value, countryCode);
-    setFormattedPhone(formatted);
-    // Extrair apenas números para armazenar
-    setWhatsappPhone(e.target.value.replace(/\D/g, ""));
-  };
-
-  // Modificar handleConnectWhatsApp para incluir o código do país
+  // Ajustar handleConnectWhatsApp
   const handleConnectWhatsApp = async () => {
     if (!settings || !whatsappPhone) return;
     
-    // Combinar código do país com número local (apenas números)
-    const fullPhone = countryCode.replace("+", "") + whatsappPhone.replace(/\D/g, "");
+    // Combinar código do país com número local (já são apenas números)
+    const fullPhone = whatsappCountryCode.replace("+", "") + whatsappPhone;
     
-    console.log(`Conectando WhatsApp: ${fullPhone}`);
+    console.log(`Conectando WhatsApp: ${fullPhone} (Code: ${whatsappCountryCode}, Number: ${whatsappPhone})`);
     setConnecting(true);
+    setQrCode(null); // Limpa QR code antigo
     
     try {
       const response = await fetch('/api/salon/connect-whatsapp', {
@@ -363,6 +305,11 @@ export default function SettingsPage() {
   const handleDisconnectWhatsApp = () => {
     // Implemente a lógica para desconectar o WhatsApp
     console.log('Desconectar WhatsApp');
+    // Simular desconexão
+    setSettings(prev => prev ? { ...prev, whatsappConnected: false, whatsappPhone: '' } : null);
+    setWhatsappPhone('');
+    setWhatsappCountryCode('+55'); // Reset para o padrão
+    toast({ title: "Desconectado", description: "WhatsApp desconectado." });
   };
 
   return (
@@ -449,50 +396,36 @@ export default function SettingsPage() {
                 {!settings.whatsappConnected ? (
                   <>
                     <div>
-                      <Label htmlFor="whatsappPhone">Número de WhatsApp do Salão</Label>
-                      <div className="flex gap-2">
-                        <Select
-                          value={countryCode}
-                          onValueChange={setCountryCode}
+                      <Label htmlFor="whatsappPhoneInput">Número de WhatsApp do Salão</Label>
+                      <div className="flex flex-col sm:flex-row gap-2 items-start">
+                        <PhoneInput
+                          id="whatsappPhoneInput"
+                          value={whatsappPhone}
+                          onChange={(value) => setWhatsappPhone(value)}
+                          onCountryChange={setWhatsappCountryCode}
+                          defaultCountryCode={whatsappCountryCode}
                           disabled={connecting || !canManage}
-                        >
-                          <SelectTrigger className="w-[110px]">
-                            <SelectValue placeholder="DDI">
-                              {COUNTRY_CODES.find(c => c.code === countryCode)?.flag} {countryCode}
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            {COUNTRY_CODES.map((country) => (
-                              <SelectItem key={country.code} value={country.code}>
-                                <div className="flex items-center">
-                                  <span className="mr-2 text-lg">{country.flag}</span>
-                                  <span>{country.code}</span>
-                                  <span className="ml-2 text-xs text-muted-foreground">({country.country})</span>
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Input 
-                          id="whatsappPhone" 
-                          placeholder="Ex: (11) 99988-7766" 
-                          value={formattedPhone} 
-                          onChange={handlePhoneChange}
-                          disabled={connecting || !canManage}
-                          className="flex-1"
+                          required
                         />
                         <Button 
                           onClick={handleConnectWhatsApp} 
                           disabled={connecting || !whatsappPhone || !canManage}
+                          className="w-full sm:w-auto"
                         >
                           {connecting ? 'Conectando...' : 'Conectar'}
                         </Button>
                       </div>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Digite apenas o número local, sem o código do país.
+                        O número será usado para notificações e agendamento via bot (se ativado).
                       </p>
                     </div>
                     
+                    {connecting && !qrCode && (
+                       <div className="mt-4 text-center">
+                          <p>Aguardando QR Code...</p> 
+                       </div>
+                    )}
+
                     {qrCode && (
                       <div className="mt-4 text-center">
                         <h3 className="mb-2 font-medium">Escaneie o QR Code com seu WhatsApp</h3>
@@ -512,7 +445,7 @@ export default function SettingsPage() {
                       <div>
                         <p className="font-medium">WhatsApp Conectado</p>
                         <p className="text-sm text-muted-foreground">
-                          Número: {settings.whatsappPhone}
+                          Número: {PhoneInput.formatPhoneNumber(settings.whatsappPhone || '', settings.whatsappCountryCode || '+55') || 'N/A'}
                         </p>
                       </div>
                     </div>
@@ -524,6 +457,35 @@ export default function SettingsPage() {
                   </div>
                 )}
               </CardContent>
+              {canManage && (
+                <CardFooter className="border-t px-6 py-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+                        <div>
+                          <Label htmlFor="evoUrl">URL da API Evolution</Label>
+                          <Input id="evoUrl" placeholder="https://seu.dominio.evolution" value={settings.evolution_api_url || ''} 
+                                 onChange={(e: ChangeEvent<HTMLInputElement>) => handleInputChange('evolution_api_url', e.target.value)} 
+                                 disabled={!canManage || saving} />
+                        </div>
+                        <div>
+                          <Label htmlFor="evoKey">Chave da API (apikey)</Label>
+                          <Input id="evoKey" type="password" placeholder="SuaChaveSecreta" value={settings.evolution_api_key || ''} 
+                                 onChange={(e: ChangeEvent<HTMLInputElement>) => handleInputChange('evolution_api_key', e.target.value)} 
+                                 disabled={!canManage || saving} />
+                        </div>
+                        <div>
+                           <Label htmlFor="evoInstance">Nome da Instância</Label>
+                           <Input id="evoInstance" placeholder="NomeUnicoInstancia" value={settings.evolution_instance_name || ''} 
+                                  onChange={(e: ChangeEvent<HTMLInputElement>) => handleInputChange('evolution_instance_name', e.target.value)} 
+                                  disabled={!canManage || saving} />
+                        </div>
+                    </div>
+                     {canManage && (
+                       <Button onClick={() => handleSave('whatsapp')} disabled={saving} className="mt-4 ml-auto"> 
+                         {saving ? 'Salvando...' : 'Salvar Configurações API'}
+                       </Button>
+                     )}
+                </CardFooter>
+              )}
             </Card>
           </TabsContent>
 
@@ -573,3 +535,24 @@ export default function SettingsPage() {
     </Card>
   )
 }
+
+// Adicionar formatação estática ao PhoneInput para uso externo
+PhoneInput.formatPhoneNumber = (value: string, country: string): string => {
+  const numbers = value.replace(/\D/g, "");
+
+  // Adapte esta lógica conforme a formatação definida em phone-input.tsx
+  if (country === "+55") {
+    if (numbers.length <= 2) return `(${numbers}`;
+    if (numbers.length <= 6) return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
+    if (numbers.length <= 10) return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 6)}-${numbers.slice(6)}`;
+    return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
+  }
+  if (country === "+1") {
+    if (numbers.length <= 3) return `(${numbers}`;
+    if (numbers.length <= 6) return `(${numbers.slice(0, 3)}) ${numbers.slice(3)}`;
+    return `(${numbers.slice(0, 3)}) ${numbers.slice(3, 6)}-${numbers.slice(6, 10)}`;
+  }
+  // Adicione outros países se necessário...
+
+  return numbers; 
+};

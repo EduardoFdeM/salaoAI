@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { PhoneInput } from '@/components/ui/phone-input'
 import { Grid, List, UserPlus, Mail, Search, PlusIcon, PencilIcon, TrashIcon, CheckCircleIcon, XCircleIcon } from 'lucide-react'
 
 interface Service {
@@ -42,6 +43,9 @@ export default function SalonProfessionalsPage() {
   const [inviteEmail, setInviteEmail] = useState('')
   const { user } = useAuth()
 
+  // Estado para o formulário
+  const [formData, setFormData] = useState<Partial<Professional>>({});
+
   // Substituir os dados mockados de serviços por uma busca na API
   const [services, setServices] = useState<Service[]>([])
   const [servicesLoading, setServicesLoading] = useState(true)
@@ -61,6 +65,7 @@ export default function SalonProfessionalsPage() {
         setServices(data)
       } catch (error) {
         console.error('Erro ao buscar serviços:', error)
+        setServices([])
       } finally {
         setServicesLoading(false)
       }
@@ -120,6 +125,13 @@ export default function SalonProfessionalsPage() {
 
   const handleAddEdit = (professional: Professional | null) => {
     setSelectedProfessional(professional)
+    // Inicializa o formData com os dados do profissional ou vazio
+    setFormData(professional ? { 
+      ...professional, 
+      // Separar DDI do telefone se estiver no formato DDI+Número
+      // A API espera apenas a string. Vamos armazenar apenas números no estado
+      phone: professional.phone?.replace(/\D/g, '') || '' 
+    } : { active: true }); // Padrão ativo para novos
     setShowForm(true)
   }
 
@@ -148,6 +160,7 @@ export default function SalonProfessionalsPage() {
       
     setShowDeleteConfirm(false)
     setSelectedProfessional(null)
+    setFormData({}) // Limpar o estado do formulário
     } catch (error) {
       console.error('Erro ao excluir profissional:', error)
       alert(`Erro: ${error instanceof Error ? error.message : 'Ocorreu um erro desconhecido'}`)
@@ -155,13 +168,18 @@ export default function SalonProfessionalsPage() {
     }
   }
 
+  // Função para atualizar o estado do formulário
+  const handleFormInputChange = (field: keyof Professional, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     const form = e.target as HTMLFormElement
     const name = (form.querySelector('#name') as HTMLInputElement).value
     const email = (form.querySelector('#email') as HTMLInputElement).value
-    const phone = (form.querySelector('#phone') as HTMLInputElement).value
+    const phone = formData.phone || '' // Pegar o telefone (só números) do estado
     const bio = (form.querySelector('#bio') as HTMLTextAreaElement).value
     const imageUrl = (form.querySelector('#imageUrl') as HTMLInputElement).value
     const active = (form.querySelector('#active') as HTMLInputElement).checked
@@ -215,6 +233,7 @@ export default function SalonProfessionalsPage() {
       
     setShowForm(false)
     setSelectedProfessional(null)
+    setFormData({}) // Limpar o estado do formulário
     } catch (error) {
       console.error('Erro:', error)
       alert(`Erro: ${error instanceof Error ? error.message : 'Ocorreu um erro desconhecido'}`)
@@ -591,30 +610,39 @@ export default function SalonProfessionalsPage() {
           <form onSubmit={handleFormSubmit} className="space-y-4 pt-4">
             {/* Nome */}
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700">Nome</label>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                Nome <span className="text-red-500">*</span>
+              </label>
               <Input 
                 id="name" 
-                defaultValue={selectedProfessional?.name || ''}
+                value={formData.name || ''}
+                onChange={(e) => handleFormInputChange('name', e.target.value)}
                 required
               />
             </div>
             {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                Email <span className="text-red-500">*</span>
+              </label>
               <Input 
                 type="email" 
                 id="email" 
-                defaultValue={selectedProfessional?.email || ''}
+                value={formData.email || ''}
+                onChange={(e) => handleFormInputChange('email', e.target.value)}
                 required
               />
             </div>
             {/* Telefone */}
             <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-gray-700">Telefone</label>
-              <Input 
-                id="phone" 
-                defaultValue={selectedProfessional?.phone || ''}
-                required
+              <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+                Telefone <span className="text-red-500">*</span>
+              </label>
+              <PhoneInput
+                  id="phone"
+                  value={formData.phone || ''} // Passa apenas números
+                  onChange={(value) => handleFormInputChange('phone', value)} // Recebe apenas números
+                  required
               />
             </div>
             {/* Biografia */}
@@ -623,7 +651,8 @@ export default function SalonProfessionalsPage() {
               <textarea 
                 id="bio" 
                 rows={3}
-                defaultValue={selectedProfessional?.bio || ''}
+                value={formData.bio || ''}
+                onChange={(e) => handleFormInputChange('bio', e.target.value)}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
               ></textarea>
             </div>
@@ -639,6 +668,9 @@ export default function SalonProfessionalsPage() {
                       <input 
                         type="checkbox" 
                         id={`specialty-${service.id}`} 
+                        // A lógica de checkboxes pode precisar de um estado separado ou 
+                        // ser gerenciada de forma diferente se formData não for ideal para isso.
+                        // Por ora, mantendo a leitura direta do form no submit.
                         defaultChecked={selectedProfessional?.specialties.some(s => s.id === service.id)}
                         className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                       />
@@ -655,7 +687,8 @@ export default function SalonProfessionalsPage() {
               <label htmlFor="imageUrl" className="block text-sm font-medium text-gray-700">URL da Imagem</label>
               <Input 
                 id="imageUrl" 
-                defaultValue={selectedProfessional?.imageUrl || ''}
+                value={formData.imageUrl || ''}
+                onChange={(e) => handleFormInputChange('imageUrl', e.target.value)}
               />
             </div>
             {/* Status Ativo */}
@@ -663,7 +696,9 @@ export default function SalonProfessionalsPage() {
               <input 
                 type="checkbox" 
                 id="active" 
-                defaultChecked={selectedProfessional ? selectedProfessional.active : true}
+                // O estado controla o 'checked'
+                checked={formData.active ?? true} 
+                onChange={(e) => handleFormInputChange('active', e.target.checked)}
                 className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
               />
               <label htmlFor="active" className="ml-2 block text-sm text-gray-700">Ativo</label>
@@ -701,7 +736,7 @@ export default function SalonProfessionalsPage() {
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <label htmlFor="inviteEmail" className="text-sm font-medium">
-                  Email do Profissional
+                  Email do Profissional <span className="text-red-500">*</span>
                 </label>
                 <Input
                   id="inviteEmail"

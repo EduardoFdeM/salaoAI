@@ -16,6 +16,14 @@ import { UserRole } from '@/types/auth'
 import { Service, ServiceFormData } from '@/types/salon'
 import { useToast } from "@/hooks/use-toast"
 
+// Interface ajustada para price/duration como string | number no formulário
+// Se ServiceFormData em types/salon.ts já for assim, ignore.
+// Caso contrário, considere ajustar types/salon.ts
+interface LocalServiceFormData extends Omit<ServiceFormData, 'price' | 'duration'> {
+  price: string | number;
+  duration: string | number;
+}
+
 export default function ServicesPage() {
   const { user } = useAuth()
   const { toast } = useToast()
@@ -25,11 +33,12 @@ export default function ServicesPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [currentService, setCurrentService] = useState<Service | null>(null)
-  const [formData, setFormData] = useState<ServiceFormData>({
+  // Usar a interface local ou importar ServiceFormData ajustada
+  const [formData, setFormData] = useState<Partial<LocalServiceFormData>>({
     name: '',
     description: '',
-    price: 0,
-    duration: 30,
+    price: '', // Mantido como string
+    duration: '30', // Mantido como string
     active: true
   })
   
@@ -44,18 +53,12 @@ export default function ServicesPage() {
       
       const data = await response.json()
       setServices(data)
+      setError(null)
     } catch (err) {
       console.error('Erro:', err)
-      setError('Não foi possível carregar os serviços')
+      setError('Não foi possível carregar os serviços. Tente atualizar a página.')
       
-      // Usando dados mockados enquanto o backend é implementado
-      setServices([
-  { id: '1', name: 'Corte Feminino', description: 'Corte moderno e estilizado', price: 80.00, duration: 60, salon_id: '1', active: true, created_at: '2023-10-26T10:00:00Z' },
-  { id: '2', name: 'Corte Masculino', description: 'Corte clássico ou moderno', price: 50.00, duration: 45, salon_id: '1', active: true, created_at: '2023-10-26T10:05:00Z' },
-  { id: '3', name: 'Coloração Raiz', description: 'Aplicação de coloração na raiz', price: 120.00, duration: 90, salon_id: '1', active: true, created_at: '2023-10-26T10:10:00Z' },
-  { id: '4', name: 'Escova Progressiva', description: 'Alisamento e redução de volume', price: 250.00, duration: 180, salon_id: '1', active: false, created_at: '2023-10-26T10:15:00Z' },
-  { id: '5', name: 'Manicure Simples', description: 'Cutilagem e esmaltação', price: 30.00, duration: 45, salon_id: '1', active: true, created_at: '2023-10-26T10:20:00Z' },
-      ])
+      setServices([])
     } finally {
       setLoading(false)
     }
@@ -67,11 +70,12 @@ export default function ServicesPage() {
 
   const handleAddService = () => {
     setCurrentService(null)
+    // Resetar formData garantindo conformidade com Partial<LocalServiceFormData>
     setFormData({
       name: '',
       description: '',
-      price: 0,
-      duration: 30,
+      price: '', // string
+      duration: '30', // string
       active: true
     })
     setDialogOpen(true)
@@ -79,11 +83,12 @@ export default function ServicesPage() {
 
   const handleEditService = (service: Service) => {
     setCurrentService(service)
+    // Garantir conformidade com Partial<LocalServiceFormData>
     setFormData({
       name: service.name,
       description: service.description || '',
-      price: service.price,
-      duration: service.duration,
+      price: service.price.toString(), // string
+      duration: service.duration.toString(), // string
       active: service.active
     })
     setDialogOpen(true)
@@ -122,9 +127,16 @@ export default function ServicesPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
+    if (name === 'price' && !/^[0-9]*\\.?[0-9]*$/.test(value)) {
+        return;
+    }
+    if (name === 'duration' && !/^[0-9]*$/.test(value)) {
+        return;
+    }
+
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'price' || name === 'duration' ? Number(value) : value
+      [name]: value
     }))
   }
 
@@ -139,6 +151,48 @@ export default function ServicesPage() {
     e.preventDefault()
     setIsSubmitting(true)
 
+    if (!formData.name || !formData.price || !formData.duration) {
+        toast({
+            title: "Campos obrigatórios",
+            description: "Por favor, preencha Nome, Preço e Duração.",
+            variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+    }
+
+    const priceAsNumber = parseFloat(formData.price?.toString() ?? '0');
+    const durationAsNumber = parseInt(formData.duration?.toString() ?? '0', 10);
+
+    if (isNaN(priceAsNumber) || priceAsNumber < 0) {
+         toast({
+            title: "Preço inválido",
+            description: "Por favor, insira um valor numérico válido para o preço.",
+            variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+    }
+
+    if (isNaN(durationAsNumber) || durationAsNumber <= 0) {
+         toast({
+            title: "Duração inválida",
+            description: "Por favor, insira um valor numérico positivo para a duração.",
+            variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+    }
+
+    const dataToSend: ServiceFormData = {
+        ...formData,
+        price: priceAsNumber,
+        duration: durationAsNumber,
+        active: formData.active ?? true,
+        name: formData.name ?? '',
+        description: formData.description ?? '',
+    };
+
     try {
       const url = currentService 
         ? `/api/salon/services/${currentService.id}` 
@@ -151,36 +205,16 @@ export default function ServicesPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(dataToSend),
       })
 
       if (!response.ok) {
-        throw new Error(`Erro ao ${currentService ? 'atualizar' : 'criar'} serviço`)
+        const errorData = await response.json().catch(() => ({}))
+        console.error("API Error:", errorData)
+        throw new Error(`Erro ao ${currentService ? 'atualizar' : 'criar'} serviço: ${errorData.message || response.statusText}`)
       }
 
-      // Se estivermos usando dados mockados, simular o comportamento
-      if (!response.ok && error) {
-        if (currentService) {
-          // Atualizar o serviço existente
-          setServices(services.map(s => 
-            s.id === currentService.id 
-              ? { ...s, ...formData, updated_at: new Date().toISOString() } 
-              : s
-          ))
-        } else {
-          // Adicionar novo serviço
-          const newService: Service = {
-            id: `new-${Date.now()}`,
-            salon_id: '1',
-            ...formData,
-            created_at: new Date().toISOString(),
-          }
-          setServices([...services, newService])
-        }
-      } else {
-        // Se a API estiver funcionando, buscar dados atualizados
-        fetchServices()
-      }
+      fetchServices()
 
       toast({
         title: currentService ? "Serviço atualizado" : "Serviço criado",
@@ -222,6 +256,10 @@ export default function ServicesPage() {
           {loading ? (
             <div className="flex justify-center items-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : error ? (
+            <div className="text-center py-8 text-red-600">
+              {error}
             </div>
           ) : (
         <Table>
@@ -271,7 +309,7 @@ export default function ServicesPage() {
         </Table>
           )}
       </CardContent>
-        {services.length > 0 && (
+        {!loading && !error && services.length > 0 && (
       <CardFooter>
         <div className="text-xs text-muted-foreground">
           Mostrando <strong>1-{services.length}</strong> de <strong>{services.length}</strong> serviços
@@ -282,81 +320,85 @@ export default function ServicesPage() {
 
       {/* Modal para Adicionar/Editar Serviço */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
-            <DialogTitle>{currentService ? 'Editar Serviço' : 'Adicionar Serviço'}</DialogTitle>
+            <DialogTitle>{currentService ? 'Editar Serviço' : 'Adicionar Novo Serviço'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit}>
             <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="name">Nome</Label>
-                <Input
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  required
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="name" className="text-right">
+                  Nome <span className="text-red-500">*</span>
+                </Label>
+                <Input 
+                  id="name" 
+                  name="name" 
+                  value={formData.name || ''} 
+                  onChange={handleInputChange} 
+                  className="col-span-3" 
+                  required 
                 />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="description">Descrição</Label>
-                <Textarea
-                  id="description"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  rows={3}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="description" className="text-right">
+                  Descrição
+                </Label>
+                <Textarea 
+                  id="description" 
+                  name="description" 
+                  value={formData.description || ''} 
+                  onChange={handleInputChange} 
+                  className="col-span-3" 
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="price">Preço (R$)</Label>
-                  <Input
-                    id="price"
-                    name="price"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={formData.price}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="duration">Duração (min)</Label>
-                  <Input
-                    id="duration"
-                    name="duration"
-                    type="number"
-                    min="5"
-                    step="5"
-                    value={formData.duration}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="active"
-                  checked={formData.active}
-                  onCheckedChange={handleSwitchChange}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="price" className="text-right">
+                  Preço (R$) <span className="text-red-500">*</span>
+                </Label>
+                <Input 
+                  id="price" 
+                  name="price" 
+                  type="text"
+                  inputMode="decimal"
+                  value={formData.price || ''} 
+                  onChange={handleInputChange} 
+                  className="col-span-3" 
+                  required 
                 />
-                <Label htmlFor="active">Serviço ativo</Label>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="duration" className="text-right">
+                  Duração (min) <span className="text-red-500">*</span>
+                </Label>
+                <Input 
+                  id="duration" 
+                  name="duration" 
+                  type="text"
+                  inputMode="numeric"
+                  value={formData.duration || ''} 
+                  onChange={handleInputChange} 
+                  className="col-span-3" 
+                  required 
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="active" className="text-right">
+                  Ativo
+                </Label>
+                <Switch 
+                  id="active" 
+                  name="active" 
+                  checked={formData.active} 
+                  onCheckedChange={handleSwitchChange} 
+                  className="col-span-3" 
+                />
               </div>
             </div>
             <DialogFooter>
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setDialogOpen(false)}
-                disabled={isSubmitting}
-              >
-                Cancelar
-              </Button>
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {currentService ? 'Salvar Alterações' : 'Criar Serviço'}
+                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                {currentService ? 'Salvar Alterações' : 'Adicionar Serviço'}
               </Button>
             </DialogFooter>
           </form>

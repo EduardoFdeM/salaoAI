@@ -6,6 +6,7 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateServiceDto } from "./dto/create-service.dto";
 import { UpdateServiceDto } from "./dto/update-service.dto";
+import { Prisma } from "@prisma/client";
 
 @Injectable()
 export class ServicesService {
@@ -80,15 +81,24 @@ export class ServicesService {
     // Verificar se o serviço existe e pertence ao salão
     await this.findOne(id, salonId);
 
-    // Opção 1: Exclusão real
-    // return this.prisma.service.delete({
-    //   where: { id },
-    // });
-
-    // Opção 2: Exclusão lógica (preferível)
-    return this.prisma.service.update({
-      where: { id },
-      data: { active: false },
-    });
+    // ATENÇÃO: Hard delete do Serviço.
+    // Isso FALHARÁ se houver agendamentos associados a este serviço.
+    // Considere as implicações para dados históricos antes de prosseguir em produção.
+    try {
+      await this.prisma.service.delete({
+        where: { id },
+      });
+      return { message: "Serviço removido com sucesso." };
+    } catch (error) {
+      // Captura erro de restrição de chave estrangeira (comum com delete)
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') { 
+        // Código P2003 geralmente indica falha de restrição de chave estrangeira
+        throw new ForbiddenException(
+          'Não é possível excluir este serviço pois ele está associado a agendamentos existentes.',
+        );
+      }
+      // Re-lança outros erros
+      throw error;
+    }
   }
 } 

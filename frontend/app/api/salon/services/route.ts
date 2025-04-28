@@ -95,20 +95,14 @@ export async function POST(request: NextRequest) {
     // Obter dados do corpo da requisição
     const serviceData = await request.json();
 
-    // Adicionar o salonId ao serviço
-    const serviceWithSalonId = {
-      ...serviceData,
-      salonId
-    };
-
-    // Fazer requisição para o backend (caminho correto e usando salonId do token)
+    // Fazer requisição para o backend com os dados originais
     const response = await fetch(`${API_URL}/api/services`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(serviceWithSalonId),
+      body: JSON.stringify(serviceData), 
     });
 
     // Obter dados da resposta

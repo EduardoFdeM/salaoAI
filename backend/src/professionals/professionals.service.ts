@@ -9,8 +9,7 @@ export class ProfessionalsService {
     return this.prisma.salonUser.findMany({
       where: {
         salonId,
-        active: true,
-        role: 'PROFESSIONAL',
+        role: "PROFESSIONAL",
       },
       include: {
         user: {
@@ -20,7 +19,7 @@ export class ProfessionalsService {
             email: true,
             phone: true,
             bio: true,
-            imageUrl: true
+            imageUrl: true,
           },
         },
         professionalServices: {
@@ -47,7 +46,7 @@ export class ProfessionalsService {
             email: true,
             phone: true,
             bio: true,
-            imageUrl: true
+            imageUrl: true,
           },
         },
         professionalServices: {
@@ -133,16 +132,16 @@ export class ProfessionalsService {
     const professional = await this.findOne(id, salonId);
 
     if (data.userData) {
-      await this.prisma.user.update({
-        where: { id: professional.userId },
-        data: {
-          name: data.userData.name,
-          email: data.userData.email,
-          phone: data.userData.phone,
-          bio: data.userData.bio,
-          imageUrl: data.userData.imageUrl,
-        },
-      });
+      const userDataToUpdate = Object.fromEntries(
+        Object.entries(data.userData).filter(([_, v]) => v !== undefined)
+      );
+
+      if (Object.keys(userDataToUpdate).length > 0) {
+        await this.prisma.user.update({
+          where: { id: professional.userId },
+          data: userDataToUpdate,
+        });
+      }
     }
 
     if (data.active !== undefined) {
@@ -160,11 +159,11 @@ export class ProfessionalsService {
   }
 
   async remove(id: string, salonId: string) {
-    await this.findOne(id, salonId);
-    return this.prisma.salonUser.update({
-      where: { id },
-      data: { active: false },
+    const professional = await this.findOne(id, salonId);
+    await this.prisma.salonUser.delete({
+      where: { id: professional.id },
     });
+    return { message: "Relação profissional-salão removida com sucesso." };
   }
 
   private async updateSpecialties(
