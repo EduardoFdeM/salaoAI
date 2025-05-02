@@ -3,9 +3,11 @@ import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
+import { AppointmentsModule } from './appointments/appointments.module';
 import { SalonsModule } from './salons/salons.module';
 import { ServicesModule } from './services/services.module';
 import { ProfessionalsModule } from './professionals/professionals.module';
+import { ClientsModule } from './clients/clients.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { AppController } from './app.controller';
@@ -22,6 +24,8 @@ import { WhatsappModule } from './whatsapp/whatsapp.module';
     PrismaModule,
     UsersModule,
     AuthModule,
+    ClientsModule,
+    AppointmentsModule,
     SalonsModule,
     ServicesModule,
     ProfessionalsModule,

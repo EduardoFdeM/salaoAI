@@ -8,6 +8,7 @@ import {
   Delete,
   UseGuards,
   Request,
+  NotFoundException,
 } from "@nestjs/common";
 import { ProfessionalsService } from "./professionals.service";
 import {
@@ -17,6 +18,31 @@ import {
   ApiBearerAuth,
 } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { Role } from "@prisma/client";
+import { CreateUserDto } from "../users/dto/create-user.dto";
+import { UpdateUserDto } from "../users/dto/update-user.dto";
+
+interface AuthenticatedUser {
+  id: string;
+  salon_id?: string;
+  role?: Role;
+}
+
+interface AuthenticatedRequest extends Request {
+  user?: AuthenticatedUser;
+}
+
+interface CreateProfessionalBodyDto {
+  userData: CreateUserDto;
+  specialties?: string[];
+}
+
+interface UpdateProfessionalBodyDto {
+  userData?: UpdateUserDto;
+  specialties?: string[];
+  active?: boolean;
+  workingHours?: any;
+}
 
 @ApiTags("professionals")
 @ApiBearerAuth()
@@ -30,10 +56,10 @@ export class ProfessionalsController {
   })
   @ApiResponse({ status: 200, description: "Lista de profissionais" })
   @Get()
-  findAll(@Request() req: any) {
+  findAll(@Request() req: AuthenticatedRequest) {
     const salonId = req.user?.salon_id;
     if (!salonId) {
-      throw new Error("Usuário não associado a um salão.");
+      throw new NotFoundException("Usuário não associado a um salão.");
     }
     return this.professionalsService.findAll(salonId);
   }
@@ -42,24 +68,31 @@ export class ProfessionalsController {
   @ApiResponse({ status: 200, description: "Detalhes do profissional" })
   @ApiResponse({ status: 404, description: "Profissional não encontrado" })
   @Get(":id")
-  findOne(@Param("id") id: string, @Request() req: any) {
+  findOne(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
     const salonId = req.user?.salon_id;
     if (!salonId) {
-      throw new Error("Usuário não associado a um salão.");
+      throw new NotFoundException("Usuário não associado a um salão.");
     }
     return this.professionalsService.findOne(id, salonId);
   }
 
-  @ApiOperation({ summary: "Criar um novo profissional" })
+  @ApiOperation({ summary: "Criar um novo profissional associado ao salão" })
   @ApiResponse({ status: 201, description: "Profissional criado com sucesso" })
   @Post()
-  create(@Request() req: any, @Body() createProfessionalDto: any) {
+  create(
+    @Request() req: AuthenticatedRequest,
+    @Body() createProfessionalDto: CreateProfessionalBodyDto,
+  ) {
     const salonId = req.user?.salon_id;
     if (!salonId) {
-      throw new Error("Usuário não associado a um salão.");
+      throw new NotFoundException("Usuário não associado a um salão.");
     }
-    const data = { ...createProfessionalDto, salonId };
-    return this.professionalsService.create(data);
+    const dataToCreate = {
+      ...createProfessionalDto,
+      salonId: salonId,
+      role: Role.PROFESSIONAL,
+    };
+    return this.professionalsService.create(dataToCreate);
   }
 
   @ApiOperation({ summary: "Atualizar um profissional existente" })
@@ -71,27 +104,27 @@ export class ProfessionalsController {
   @Patch(":id")
   update(
     @Param("id") id: string,
-    @Request() req: any,
-    @Body() updateProfessionalDto: any,
+    @Request() req: AuthenticatedRequest,
+    @Body() updateProfessionalDto: UpdateProfessionalBodyDto,
   ) {
     const salonId = req.user?.salon_id;
     if (!salonId) {
-      throw new Error("Usuário não associado a um salão.");
+      throw new NotFoundException("Usuário não associado a um salão.");
     }
     return this.professionalsService.update(id, salonId, updateProfessionalDto);
   }
 
-  @ApiOperation({ summary: "Remover um profissional" })
+  @ApiOperation({ summary: "Remover um profissional (exclusão lógica?)" })
   @ApiResponse({
     status: 200,
-    description: "Profissional removido com sucesso",
+    description: "Profissional removido/desativado com sucesso",
   })
   @ApiResponse({ status: 404, description: "Profissional não encontrado" })
   @Delete(":id")
-  remove(@Param("id") id: string, @Request() req: any) {
+  remove(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
     const salonId = req.user?.salon_id;
     if (!salonId) {
-      throw new Error("Usuário não associado a um salão.");
+      throw new NotFoundException("Usuário não associado a um salão.");
     }
     return this.professionalsService.remove(id, salonId);
   }
@@ -100,12 +133,12 @@ export class ProfessionalsController {
   @ApiResponse({ status: 200, description: "Convite enviado com sucesso" })
   @Post("invite")
   invite(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Body() inviteDto: { email: string; message?: string },
   ) {
     const salonId = req.user?.salon_id;
     if (!salonId) {
-      throw new Error("Usuário não associado a um salão.");
+      throw new NotFoundException("Usuário não associado a um salão.");
     }
     return this.professionalsService.invite(
       inviteDto.email,
@@ -113,4 +146,4 @@ export class ProfessionalsController {
       inviteDto.message,
     );
   }
-} 
+}

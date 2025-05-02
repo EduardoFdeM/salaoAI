@@ -271,3 +271,7 @@
 - Implementar throttling para prevenção de ataques de força bruta
 - Validação de entrada em todos os endpoints
 - Implementar proteção contra ataques comuns (SQL Injection, XSS, CSRF)
+
+- Implementações Futuras !!!
+ Para Salões
+  Cupons e Descontos

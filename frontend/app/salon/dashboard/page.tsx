@@ -181,12 +181,15 @@ export default function SalonDashboard() {
                     <p className="text-sm font-medium leading-none">
                       Top serviços do mês:
                     </p>
-                    <p className="text-sm text-muted-foreground">
-                      1. {topServices[0]?.name || 'Serviço'}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      2. {topServices[1]?.name || 'Serviço'}
-                    </p>
+                    {topServices.length > 0 ? (
+                        topServices.slice(0, 2).map((service, index) => (
+                            <p key={service.id} className="text-sm text-muted-foreground">
+                                {index + 1}. {service.name} ({service.count}x)
+                            </p>
+                        ))
+                    ) : (
+                        <p className="text-sm text-muted-foreground">Nenhum serviço recente.</p>
+                    )}
                 </div>
                 </div>
               </CardContent>
@@ -209,10 +212,16 @@ export default function SalonDashboard() {
                       <p className="text-sm font-medium leading-none">
                         Mais agendados:
                       </p>
-                      <p className="text-sm text-muted-foreground">
-                        {topProfessionals[0]?.name || 'Profissional'}
-                      </p>
-                </div>
+                      {topProfessionals.length > 0 ? (
+                        topProfessionals.slice(0, 1).map((prof) => (
+                          <p key={prof.id} className="text-sm text-muted-foreground">
+                            {prof.name} ({prof.count}x)
+                          </p>
+                        ))
+                      ) : (
+                         <p className="text-sm text-muted-foreground">Nenhum profissional recente.</p>
+                      )}
+                    </div>
                     <div className="space-y-1">
                       <p className="text-sm font-medium leading-none">
                         Hoje disponíveis:

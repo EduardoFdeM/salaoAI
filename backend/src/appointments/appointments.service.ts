@@ -1,19 +1,23 @@
 // src/appointments/appointments.service.ts (adicionar método)
 import {
-  ConflictException,
   Injectable,
   NotFoundException,
   InternalServerErrorException,
   BadRequestException,
   Inject,
   forwardRef,
+  Logger,
 } from "@nestjs/common";
-import { PrismaService } from '../prisma/prisma.service';
-import { WhatsappService } from '../whatsapp/whatsapp.service';
-import { Appointment, AppointmentStatus, Prisma, NotificationType } from '@prisma/client';
-import { CreateAppointmentDto } from './dto/create-appointment.dto';
-import { UpdateAppointmentDto } from './dto/update-appointment.dto';
-import { Logger } from '@nestjs/common';
+import { PrismaService } from "../prisma/prisma.service";
+import { WhatsappService } from "../whatsapp/whatsapp.service";
+import {
+  Appointment,
+  AppointmentStatus,
+  Prisma,
+  NotificationType,
+} from "@prisma/client";
+import { CreateAppointmentDto } from "./dto/create-appointment.dto";
+import { UpdateAppointmentDto } from "./dto/update-appointment.dto";
 
 @Injectable()
 export class AppointmentsService {
@@ -66,19 +70,13 @@ export class AppointmentsService {
       throw new NotFoundException("Salão não encontrado");
     }
 
-    // Verificar conflitos de horário
+    // Verificar conflitos de horário (ignorando cancelados)
     const conflictingAppointment = await this.prisma.appointment.findFirst({
       where: {
         professionalId,
-        startTime: {
-          lte: endTime,
-        },
-        endTime: {
-          gte: startTime,
-        },
-        status: {
-          not: AppointmentStatus.CANCELLED,
-        },
+        startTime: { lte: endTime },
+        endTime: { gte: startTime },
+        status: { not: AppointmentStatus.CANCELLED },
       },
     });
 
@@ -131,36 +129,32 @@ export class AppointmentsService {
   }
 
   async scheduleReminders(appointment: Appointment): Promise<boolean> {
-    // Agendar lembretes para o agendamento
-    // 1. Lembrete de confirmação (logo após agendamento)
     try {
       await this.whatsappService.scheduleNotification(
         appointment.id,
         NotificationType.CONFIRMATION,
       );
 
-      // 2. Lembrete um dia antes
       const oneDayBefore = new Date(appointment.startTime);
       oneDayBefore.setDate(oneDayBefore.getDate() - 1);
-      
       const timeUntilOneDayBefore = oneDayBefore.getTime() - Date.now();
       if (timeUntilOneDayBefore > 0) {
         setTimeout(() => {
-          this.whatsappService.scheduleNotification(appointment.id, NotificationType.REMINDER)
+          this.whatsappService
+            .scheduleNotification(appointment.id, NotificationType.REMINDER)
             .catch((err) =>
               console.error("Erro ao agendar lembrete day_before:", err),
             );
         }, timeUntilOneDayBefore);
       }
-      
-      // 3. Lembrete 1 hora antes
+
       const oneHourBefore = new Date(appointment.startTime);
       oneHourBefore.setHours(oneHourBefore.getHours() - 1);
-      
       const timeUntilOneHourBefore = oneHourBefore.getTime() - Date.now();
       if (timeUntilOneHourBefore > 0) {
         setTimeout(() => {
-          this.whatsappService.scheduleNotification(appointment.id, NotificationType.REMINDER)
+          this.whatsappService
+            .scheduleNotification(appointment.id, NotificationType.REMINDER)
             .catch((err) =>
               console.error("Erro ao agendar lembrete hour_before:", err),
             );
@@ -169,8 +163,7 @@ export class AppointmentsService {
     } catch (error) {
       console.error("Erro ao iniciar agendamento de lembretes:", error);
     }
-    
-    return true; // Indica que o agendamento foi iniciado (não garante sucesso do envio)
+    return true;
   }
 
   async findAll(params: {
@@ -181,9 +174,9 @@ export class AppointmentsService {
     startDate?: string;
     endDate?: string;
   }) {
-    const { clientId, professionalId, salonId, status, startDate, endDate } = params;
+    const { clientId, professionalId, salonId, status, startDate, endDate } =
+      params;
 
-    // Construir where dinâmico
     const where: Prisma.AppointmentWhereInput = {};
 
     if (clientId) where.clientId = clientId;
@@ -191,16 +184,13 @@ export class AppointmentsService {
     if (salonId) where.salonId = salonId;
     if (status) where.status = status;
 
-    // Filtrar por período
     if (startDate || endDate) {
       where.startTime = {};
-      
       if (startDate) {
-        where.startTime.gte = new Date(startDate);
+        (where.startTime as Prisma.DateTimeFilter).gte = new Date(startDate);
       }
-      
       if (endDate) {
-        where.startTime.lte = new Date(endDate);
+        (where.startTime as Prisma.DateTimeFilter).lte = new Date(endDate);
       }
     }
 
@@ -238,43 +228,30 @@ export class AppointmentsService {
     });
 
     if (!appointment) {
-      throw new NotFoundException("Agendamento não encontrado");
+      throw new NotFoundException("Agendamento não encontrado ou foi excluído");
     }
 
     return appointment;
   }
 
   async update(id: string, updateAppointmentDto: UpdateAppointmentDto) {
-    const appointment = await this.prisma.appointment.findUnique({
-      where: { id },
-    });
-
-    if (!appointment) {
-      throw new NotFoundException("Agendamento não encontrado");
-    }
+    const appointment = await this.findOne(id);
 
     const { startTime, endTime, status } = updateAppointmentDto;
 
-    // Se estiver alterando o horário, verificar conflitos
     if (startTime || endTime) {
-      const newStartTime = startTime || appointment.startTime;
-      const newEndTime = endTime || appointment.endTime;
+      const newStartTime = startTime
+        ? new Date(startTime)
+        : appointment.startTime;
+      const newEndTime = endTime ? new Date(endTime) : appointment.endTime;
 
       const conflictingAppointment = await this.prisma.appointment.findFirst({
         where: {
           professionalId: appointment.professionalId,
-          id: {
-            not: id,
-          },
-          startTime: {
-            lte: newEndTime,
-          },
-          endTime: {
-            gte: newStartTime,
-          },
-          status: {
-            not: AppointmentStatus.CANCELLED,
-          },
+          id: { not: id },
+          startTime: { lte: newEndTime },
+          endTime: { gte: newStartTime },
+          status: { not: AppointmentStatus.CANCELLED },
         },
       });
 
@@ -285,10 +262,13 @@ export class AppointmentsService {
       }
     }
 
-    // Atualizar o agendamento
     const updatedAppointment = await this.prisma.appointment.update({
       where: { id },
-      data: updateAppointmentDto,
+      data: {
+        ...updateAppointmentDto,
+        startTime: startTime ? new Date(startTime) : undefined,
+        endTime: endTime ? new Date(endTime) : undefined,
+      },
       include: {
         client: true,
         professional: {
@@ -301,7 +281,6 @@ export class AppointmentsService {
       },
     });
 
-    // Se o status foi alterado para CANCELLED, enviar notificação
     if (status === AppointmentStatus.CANCELLED) {
       await this.whatsappService.scheduleNotification(
         id,
@@ -313,59 +292,57 @@ export class AppointmentsService {
   }
 
   async remove(id: string) {
-    const appointment = await this.prisma.appointment.findUnique({
-      where: { id },
-    });
+    // Verifica se o agendamento existe antes de tentar excluir
+    await this.findOne(id);
 
-    if (!appointment) {
-      throw new NotFoundException("Agendamento não encontrado");
-    }
+    try {
+      // Usar transação para garantir que ambos sejam excluídos ou nenhum
+      const [deletedHistory /*, deletedNotifications, deletedAppointment*/] =
+        await this.prisma.$transaction([
+          // 1. Excluir histórico associado
+          this.prisma.appointmentHistory.deleteMany({
+            where: { appointmentId: id },
+          }),
+          // 2. Excluir notificações associadas (se necessário)
+          // this.prisma.notification.deleteMany({
+          //   where: { appointmentId: id },
+          // }),
+          // 3. Excluir o próprio agendamento
+          this.prisma.appointment.delete({
+            where: { id },
+          }),
+        ]);
 
-    // Não permitir exclusão de agendamentos que já aconteceram
-    if (appointment.endTime < new Date()) {
-      throw new BadRequestException(
-        "Não é possível excluir agendamentos passados",
+      this.logger.log(
+        `Agendamento ${id}, ${deletedHistory.count} registros de histórico excluídos.`,
       );
+      // O controller retornará 204 No Content, então não precisamos retornar mensagem daqui
+    } catch (error) {
+      this.logger.error(
+        `Erro ao tentar excluir fisicamente agendamento ${id}: ${error}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        console.error("Prisma Error Code:", error.code);
+        // Tratar outros erros específicos do Prisma se necessário
+      }
+      // Relançar o erro para o controller tratar
+      throw new InternalServerErrorException("Falha ao excluir o agendamento.");
     }
-
-    // Marcar como cancelado ao invés de excluir
-    return this.prisma.appointment.update({
-      where: { id },
-      data: {
-        status: AppointmentStatus.CANCELLED,
-      },
-      include: {
-        client: true,
-        professional: {
-          include: {
-            user: true,
-          },
-        },
-        service: true,
-        salon: true,
-      },
-    });
   }
 
   async scheduleNotification(appointmentId: string, type: NotificationType) {
     try {
-      const appointment = await this.findOne(appointmentId);
-      if (!appointment) {
-        throw new NotFoundException(
-          `Agendamento com ID ${appointmentId} não encontrado`,
-        );
-      }
+      // Busca o agendamento apenas para garantir que ele existe (findOne já lança erro se não achar)
+      await this.findOne(appointmentId);
 
-      // Chamando o serviço WhatsApp para enviar a notificação
-      return this.whatsappService.scheduleNotification(
-        appointmentId,
-        type,
-      );
+      // Agora agenda a notificação
+      return this.whatsappService.scheduleNotification(appointmentId, type);
     } catch (error) {
-      this.logger.error(
-        `Erro ao agendar notificação: ${error.message}`,
-        error.stack,
-      );
+      const message =
+        error instanceof Error ? error.message : "Erro desconhecido";
+      const stack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Erro ao agendar notificação: ${message}`, stack);
       throw new InternalServerErrorException("Erro ao agendar notificação");
     }
   }

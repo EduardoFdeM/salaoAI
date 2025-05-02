@@ -26,10 +26,16 @@ export interface Salon {
  * Status de um agendamento
  */
 export enum AppointmentStatus {
-  PENDING = 'PENDING',
-  CONFIRMED = 'CONFIRMED',
-  COMPLETED = 'COMPLETED',
-  CANCELLED = 'CANCELLED',
+  PENDING = 'PENDING',           // Pendente (criado, aguardando confirmação inicial talvez)
+  SCHEDULED = 'SCHEDULED',       // Agendado (confirmado inicialmente, mas não confirmado final)
+  CONFIRMED = 'CONFIRMED',       // Confirmado (pelo cliente/salão)
+  WAITING = 'WAITING',           // Cliente chegou e está aguardando
+  IN_PROGRESS = 'IN_PROGRESS',   // Em atendimento
+  COMPLETED = 'COMPLETED',       // Concluído
+  CANCELLED = 'CANCELLED',       // Cancelado (genérico, pode ser substituído pelos específicos)
+  CANCELLED_BY_CLIENT = 'CANCELLED_BY_CLIENT', // Cancelado pelo Cliente
+  CANCELLED_BY_SALON = 'CANCELLED_BY_SALON',   // Cancelado pelo Salão
+  NO_SHOW = 'NO_SHOW',           // Não Compareceu
 }
 
 /**
@@ -91,7 +97,6 @@ export interface Client {
   phone: string;
   email?: string | null;
   notes?: string | null;
-  observations?: string | null;
   last_visit?: string | null;
   version: number;
   created_at: string;
@@ -103,22 +108,22 @@ export interface Client {
  */
 export interface Appointment {
   id: string;
-  salon_id: string;
-  client_id: string;
-  professional_id: string;
-  service_id: string;
-  start_time: string;
-  end_time: string;
+  salonId: string;
+  clientId: string;
+  professionalId: string;
+  serviceId: string;
+  startTime: string;
+  endTime: string;
   status: AppointmentStatus;
   price: number;
   notes?: string | null;
   version: number;
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
   
   // Campos populados (opcional)
   client?: Client;
-  professional?: Professional;
+  professional?: SalonUser;
   service?: Service;
 }
 
@@ -190,10 +195,19 @@ export interface SalonUser {
   created_at?: string;
   updated_at?: string;
 
-  // Campos do User podem ser úteis aqui se populados pela API
-  name?: string;
-  email?: string;
-  phone?: string;
+  // Campos do User populados pela API
+  name?: string; // Nome pode vir direto ou do user
+  email?: string; // Email pode vir direto ou do user
+  phone?: string; // Telefone pode vir direto ou do user
+
+  // Adicionando o objeto user populado
+  user?: {
+    id: string;
+    name: string;
+    email?: string | null;
+    phone?: string | null;
+    // Adicione outros campos do User se necessário
+  };
 }
 
 /**

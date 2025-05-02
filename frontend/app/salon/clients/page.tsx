@@ -1,36 +1,255 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { useToast } from "@/hooks/use-toast"
 import { PlusCircle, Edit, Trash2, Search } from 'lucide-react'
-import { Client } from '@/types/salon' // Importar o tipo
+import { Client } from '@/types/salon'
+import { useAuth } from '@/contexts/auth-context'
+import { PhoneInput } from "@/components/ui/phone-input"
+import { useSalon } from '@/contexts/salon-context'
 
-// Mock data - Substituir pela chamada à API real
+// Interface para os dados do formulário
+interface ClientFormData {
+  name: string;
+  phone: string;
+  email?: string;
+  notes?: string;
+}
+
+// Mock data - REMOVIDO
+/*
 const MOCK_CLIENTS: Client[] = [
-  { id: 'c1', name: 'Ana Silva', email: 'ana.silva@email.com', phone: '(11) 98765-4321', observations: 'Prefere produtos sem sulfato', salon_id: '1', created_at: '2023-01-15T14:30:00Z', last_visit: '2023-10-20T10:00:00Z' },
-  { id: 'c2', name: 'Carlos Mendes', phone: '(21) 91234-5678', salon_id: '1', created_at: '2023-02-20T11:00:00Z', last_visit: '2023-10-25T15:30:00Z' },
-  { id: 'c3', name: 'Julia Pereira', email: 'julia.p@email.com', phone: '(31) 99876-5432', observations: 'Alergia a amônia', salon_id: '1', created_at: '2023-03-10T09:15:00Z', last_visit: '2023-09-30T16:00:00Z' },
-  { id: 'c4', name: 'Pedro Alves', phone: '(41) 97654-3210', salon_id: '1', created_at: '2023-04-05T16:45:00Z', last_visit: '2023-10-10T11:00:00Z' },
+  { id: 'c1', name: 'Ana Silva', email: 'ana.silva@email.com', phone: '(11) 98765-4321', notes: 'Prefere produtos sem sulfato', salon_id: '1', created_at: '2023-01-15T14:30:00Z', last_visit: '2023-10-20T10:00:00Z', version: 1, updated_at: '' },
+  // ... outros mocks ...
 ];
+*/
 
 export default function ClientsPage() {
-  const [clients, setClients] = useState<Client[]>(MOCK_CLIENTS)
+  const [clients, setClients] = useState<Client[]>([])
   const [searchTerm, setSearchTerm] = useState('')
-  // Adicionar estados para loading, erro, formulário/modal, etc.
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [showFormModal, setShowFormModal] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null)
+  const [formData, setFormData] = useState<Partial<ClientFormData>>({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { toast } = useToast()
+  const { user } = useAuth()
+  const { salon } = useSalon()
 
+  // Obter as configurações do cliente do contexto do salão
+  // Define um valor padrão caso 'salon' ou 'clientRequiredFields' sejam nulos/undefined
+  const clientSettings = salon?.clientRequiredFields ?? { phoneRequired: true, emailRequired: false };
+
+  useEffect(() => {
+    const fetchClients = async () => {
+      setLoading(true)
+      setError(null)
+      try {
+        const response = await fetch('/api/salon/clients')
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.message || 'Erro ao buscar clientes')
+        }
+        const data = await response.json()
+        setClients(data)
+      } catch (err) {
+        console.error('Erro ao buscar clientes:', err)
+        setError(err instanceof Error ? err.message : 'Ocorreu um erro desconhecido')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchClients()
+  }, [])
+
+  // Funções de manipulação para abrir modais
   const handleAddClient = () => {
-    console.log('Adicionar cliente')
+    setSelectedClient(null)
+    setFormData({})
+    setShowFormModal(true)
   }
 
   const handleEditClient = (client: Client) => {
-    console.log('Editar cliente:', client)
+    setSelectedClient(client)
+    setFormData({
+      name: client.name,
+      phone: client.phone,
+      email: client.email || '',
+      notes: client.notes || ''
+    })
+    setShowFormModal(true)
   }
 
-  const handleDeleteClient = (clientId: string) => {
-    console.log('Deletar cliente:', clientId)
+  const handleDeleteClient = (client: Client) => {
+    setSelectedClient(client)
+    setShowDeleteConfirm(true)
+  }
+
+  // Função para atualizar estado do formulário
+  const [isPhoneValid, setIsPhoneValid] = useState(true);
+  const handleInputChange = (field: keyof ClientFormData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (field === 'phone') setIsPhoneValid(true);
+  };
+  const handlePhoneInputChange = (value: string, isValid: boolean) => {
+    setFormData(prev => ({ ...prev, phone: value }));
+    setIsPhoneValid(isValid);
+  };
+
+  // Função para submeter o formulário (Criar/Editar)
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    let errors: string[] = [];
+    if (!formData.name) {
+        errors.push("Nome é obrigatório.");
+    }
+    if (clientSettings.phone && !formData.phone) {
+        errors.push("Telefone é obrigatório.");
+    } else if (formData.phone && !isPhoneValid) {
+        errors.push("Formato de telefone inválido.");
+    }
+    if (clientSettings.email && !formData.email) {
+        errors.push("Email é obrigatório.");
+    }
+    if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) {
+        errors.push("Formato de e-mail inválido.");
+    }
+
+    if (errors.length > 0) {
+      toast({
+        title: "Erro de Validação",
+        description: (
+           <ul>
+             {errors.map((err, i) => <li key={i}>{err}</li>)}
+           </ul>
+        ),
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsSubmitting(true)
+    const method = selectedClient ? 'PATCH' : 'POST'
+    const url = selectedClient
+      ? `/api/salon/clients/${selectedClient.id}`
+      : '/api/salon/clients'
+
+    let basePayload: Partial<ClientFormData> = {
+      name: formData.name,
+      phone: formData.phone || null,
+      email: formData.email || null,
+      notes: formData.notes || null,
+    };
+
+    let payload: any;
+
+    if (selectedClient) {
+      payload = basePayload;
+    } else {
+      const salonId = user?.salon_id;
+      if (!salonId) {
+         toast({
+          title: "Erro",
+          description: "ID do salão não encontrado. Faça login novamente.",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+      payload = { ...basePayload, salonId };
+    }
+
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        let errorMessage = `Erro ao ${selectedClient ? 'atualizar' : 'criar'} cliente`;
+        if (errorData.message && Array.isArray(errorData.message)) {
+            errorMessage = errorData.message.join(', ');
+        } else if (errorData.message) {
+            errorMessage = errorData.message;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const savedClient = await response.json()
+
+      // Atualizar estado local
+      setClients(prev =>
+        selectedClient
+          ? prev.map(c => (c.id === selectedClient.id ? { ...c, ...savedClient } : c))
+          : [...prev, savedClient]
+      )
+
+      toast({
+        title: "Sucesso!",
+        description: `Cliente ${selectedClient ? 'atualizado' : 'criado'} com sucesso.`,
+      })
+      setShowFormModal(false)
+
+    } catch (err) {
+      console.error('Erro ao salvar cliente:', err)
+      toast({
+        title: "Erro ao Salvar",
+        description: err instanceof Error ? err.message : 'Ocorreu um erro desconhecido',
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // Função para confirmar exclusão
+  const confirmDelete = async () => {
+    if (!selectedClient) return
+
+    setIsSubmitting(true)
+    try {
+      const response = await fetch(`/api/salon/clients/${selectedClient.id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Erro ao excluir cliente')
+      }
+
+      // Remover do estado local
+      setClients(prev => prev.filter(c => c.id !== selectedClient.id))
+
+      toast({
+        title: "Sucesso!",
+        description: "Cliente excluído com sucesso.",
+      })
+      setShowDeleteConfirm(false)
+      setSelectedClient(null)
+
+    } catch (err) {
+      console.error('Erro ao excluir cliente:', err)
+      toast({
+        title: "Erro ao Excluir",
+        description: err instanceof Error ? err.message : 'Ocorreu um erro desconhecido',
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const filteredClients = clients.filter(client =>
@@ -65,6 +284,15 @@ export default function ClientsPage() {
         </div>
       </CardHeader>
       <CardContent>
+        {loading ? (
+          <div className="flex justify-center items-center h-60">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
+          </div>
+        ) : error ? (
+          <div className="text-center py-10 text-red-600">
+            <p>Erro ao carregar clientes: {error}</p>
+          </div>
+        ) : (
         <Table>
           <TableHeader>
             <TableRow>
@@ -80,9 +308,9 @@ export default function ClientsPage() {
             {filteredClients.length > 0 ? filteredClients.map((client) => (
               <TableRow key={client.id}>
                 <TableCell className="font-medium">{client.name}</TableCell>
-                <TableCell>{client.phone}</TableCell>
+                <TableCell>{client.phone || '-'}</TableCell>
                 <TableCell className="hidden md:table-cell">{client.email || '-'}</TableCell>
-                <TableCell className="hidden lg:table-cell text-sm text-muted-foreground truncate max-w-xs">{client.observations || '-'}</TableCell>
+                  <TableCell className="hidden lg:table-cell text-sm text-muted-foreground truncate max-w-xs">{client.notes || '-'}</TableCell>
                  <TableCell className="hidden sm:table-cell">
                    {client.last_visit ? new Date(client.last_visit).toLocaleDateString('pt-BR') : '-'}
                 </TableCell>
@@ -91,7 +319,7 @@ export default function ClientsPage() {
                     <Edit className="h-4 w-4" />
                     <span className="sr-only">Editar</span>
                   </Button>
-                  <Button variant="destructive" size="icon" onClick={() => handleDeleteClient(client.id)}>
+                    <Button variant="destructive" size="icon" onClick={() => handleDeleteClient(client)}>
                     <Trash2 className="h-4 w-4" />
                     <span className="sr-only">Excluir</span>
                   </Button>
@@ -100,13 +328,116 @@ export default function ClientsPage() {
             )) : (
                <TableRow>
                 <TableCell colSpan={6} className="h-24 text-center">
-                  {searchTerm ? 'Nenhum cliente encontrado.' : 'Nenhum cliente cadastrado.'}
+                    {searchTerm ? 'Nenhum cliente encontrado.' : (clients.length === 0 ? 'Nenhum cliente cadastrado.' : 'Nenhum cliente encontrado para a busca.')}
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
+        )}
       </CardContent>
+
+      {/* Modal de Formulário (Criar/Editar) */}
+      <Dialog open={showFormModal} onOpenChange={setShowFormModal}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{selectedClient ? 'Editar Cliente' : 'Adicionar Cliente'}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleFormSubmit} className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="name">Nome <span className="text-red-500">*</span></Label>
+              <Input
+                id="name"
+                value={formData.name || ''}
+                onChange={(e) => handleInputChange('name', e.target.value)}
+                required
+                disabled={isSubmitting}
+              />
+            </div>
+            <div>
+              <Label htmlFor="phone">
+                 Telefone {clientSettings.phone && <span className="text-red-500">*</span>}
+              </Label>
+              <PhoneInput
+                id="phone"
+                value={formData.phone || ''}
+                onChange={handlePhoneInputChange}
+                required={clientSettings.phone}
+                disabled={isSubmitting}
+              />
+               {!isPhoneValid && formData.phone && <p className="text-xs text-red-500 mt-1">Formato de telefone inválido para o país selecionado.</p>}
+            </div>
+            <div>
+              <Label htmlFor="email">
+                 Email {clientSettings.email && <span className="text-red-500">*</span>}
+               </Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email || ''}
+                onChange={(e) => handleInputChange('email', e.target.value)}
+                disabled={isSubmitting}
+                required={clientSettings.email}
+              />
+            </div>
+            <div>
+              <Label htmlFor="notes">Observações</Label>
+              <Textarea
+                id="notes"
+                rows={3}
+                value={formData.notes || ''}
+                onChange={(e) => handleInputChange('notes', e.target.value)}
+                disabled={isSubmitting}
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowFormModal(false)}
+                disabled={isSubmitting}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSubmitting || (formData.phone && !isPhoneValid)}>
+                {isSubmitting ? 'Salvando...' : 'Salvar'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Confirmação de Exclusão */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirmar Exclusão</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja excluir o cliente <span className="font-medium">{selectedClient?.name}</span>?
+              Esta ação não pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowDeleteConfirm(false)}
+              disabled={isSubmitting}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Excluindo...' : 'Excluir'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </Card>
   )
 }

@@ -11,36 +11,25 @@ import { Textarea } from "@/components/ui/textarea"
 import { PhoneInput } from '@/components/ui/phone-input'
 import { useAuth } from '@/contexts/auth-context'
 import { UserRole } from '@/types/auth'
-import { SalonSettings, SettingsFormData } from '@/types/salon' // Importar tipos
-import { CheckCircle } from "lucide-react"
+import { SalonSettingsData, SettingsFormData, BusinessHours } from '@/types/salon'
+import { CheckCircle, Info } from "lucide-react"
 import Image from "next/image"
 import { useToast } from "@/hooks/use-toast"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table"
 
-// Mock data - Substituir por chamada à API real
-const MOCK_SETTINGS: SalonSettings = {
-  id: 'setting1',
-  salon_id: '1',
-  business_hours: { /* Preencher com dados mock */ 
-      monday: { isOpen: true, slots: [{ start: "09:00", end: "18:00" }] },
-      tuesday: { isOpen: true, slots: [{ start: "09:00", end: "18:00" }] },
-      wednesday: { isOpen: true, slots: [{ start: "09:00", end: "18:00" }] },
-      thursday: { isOpen: true, slots: [{ start: "09:00", end: "18:00" }] },
-      friday: { isOpen: true, slots: [{ start: "09:00", end: "20:00" }] },
-      saturday: { isOpen: true, slots: [{ start: "09:00", end: "16:00" }] },
-      sunday: null,
-  },
-  appointment_interval: 30,
-  booking_lead_time: 2, // 2 horas
-  booking_cancel_limit: 4, // 4 horas
-  active: true,
-  evolution_api_url: 'https://evo.example.com',
-  evolution_api_key: 'ABC-123-XYZ',
-  evolution_instance_name: 'MySalonInstance',
-  ai_bot_model: 'mistralai/Mixtral-8x7B-Instruct-v0.1',
-  ai_bot_prompt_template: 'Você é um assistente de agendamento para o salão {salon_name}...',
-  ai_bot_enabled: true,
-  updated_at: '2023-10-26T11:00:00Z',
-};
+// Interface local para o estado do formulário, incluindo a nova config
+// Poderia ser movido para types/salon.ts se preferir
+interface ExtendedSettingsFormData extends SettingsFormData {
+  clientRequiredFields?: {
+    phone: boolean;
+    email: boolean;
+  };
+  whatsappConnected?: boolean; // Manter para UI
+  whatsappPhone?: string; // Manter para UI
+  whatsappCountryCode?: string; // Manter para UI
+  weekStartDay?: number; // Adicionar novo campo
+}
 
 // Adicionar novo tipo para horários
 type TimeSlot = {
@@ -111,83 +100,244 @@ const DayScheduleInput = ({
   )
 }
 
+// Adicionar constantes para os nomes dos dias
+const daysOfWeekPortuguese: { [key: string]: string } = {
+  sunday: "Domingo",
+  monday: "Segunda-feira",
+  tuesday: "Terça-feira",
+  wednesday: "Quarta-feira",
+  thursday: "Quinta-feira",
+  friday: "Sexta-feira",
+  saturday: "Sábado",
+};
+
+const dayOrder = [
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+];
+
 export default function SettingsPage() {
   const { user } = useAuth()
-  const [settings, setSettings] = useState<SettingsFormData | null>(null) // Usar FormData
+  const [settings, setSettings] = useState<ExtendedSettingsFormData | null>(null)
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [savingTabs, setSavingTabs] = useState<Record<string, boolean>>({}); // Estado de salvamento por aba
   const [whatsappPhone, setWhatsappPhone] = useState(''); // Apenas números
   const [whatsappCountryCode, setWhatsappCountryCode] = useState('+55'); // Estado para o código do país
   const [connecting, setConnecting] = useState(false);
   const [qrCode, setQrCode] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null); // Estado de erro
   const { toast } = useToast();
 
-  // Carregar configurações da API (simulado)
-  useEffect(() => {
-    setLoading(true);
-    // Simular fetch
-    setTimeout(() => {
-      const fetchedSettings = {
-         business_hours: MOCK_SETTINGS.business_hours,
-         appointment_interval: MOCK_SETTINGS.appointment_interval,
-         booking_lead_time: MOCK_SETTINGS.booking_lead_time,
-         booking_cancel_limit: MOCK_SETTINGS.booking_cancel_limit,
-         evolution_api_url: MOCK_SETTINGS.evolution_api_url,
-         evolution_api_key: MOCK_SETTINGS.evolution_api_key,
-         evolution_instance_name: MOCK_SETTINGS.evolution_instance_name,
-         ai_bot_model: MOCK_SETTINGS.ai_bot_model,
-         ai_bot_prompt_template: MOCK_SETTINGS.ai_bot_prompt_template,
-         ai_bot_enabled: MOCK_SETTINGS.ai_bot_enabled,
-         // Simular busca de telefone conectado, se houver
-         whatsappConnected: false, // Exemplo: inicialmente não conectado
-         whatsappPhone: '', // Exemplo: sem número salvo
-      };
-      setSettings(fetchedSettings);
-      // Se houver um telefone conectado salvo, inicializar o estado
-      if (fetchedSettings.whatsappConnected && fetchedSettings.whatsappPhone) {
-          // Extrair código do país e número (simplificado, pode precisar de lógica melhor)
-          // Assumindo que o número salvo pode ou não incluir o DDI
-          // Esta parte pode precisar de ajuste dependendo de como o número é salvo no backend
-          const phoneDigits = fetchedSettings.whatsappPhone.replace(/\D/g, '');
-          // Tentar detectar DDI (exemplo simples para +55)
-          if (phoneDigits.startsWith('55') && phoneDigits.length > 11) {
-              setWhatsappCountryCode('+55');
-              setWhatsappPhone(phoneDigits.substring(2));
-          } else {
-              // Assume DDI padrão ou lógica mais complexa necessária
-              setWhatsappPhone(phoneDigits);
-          }
-      }
-      setLoading(false);
-    }, 500);
-  }, []); // Adicionar array de dependência vazio
+  // Função para obter a ordem dos dias baseada na configuração
+  const getOrderedDays = (startDay: number = 1): string[] => {
+    if (startDay === 0) { // Começa no Domingo
+      return dayOrder;
+    }
+    // Começa na Segunda (padrão)
+    const sunday = dayOrder[0];
+    const restOfWeek = dayOrder.slice(1);
+    return [...restOfWeek, sunday];
+  };
 
-  const handleInputChange = (field: keyof SettingsFormData, value: any) => {
-    setSettings(prev => prev ? { ...prev, [field]: value } : null);
-  }
-  
-  const handleBusinessHoursChange = (day: keyof SettingsFormData['business_hours'], field: string, value: any) => {
-      console.log("Atualizar horário:", day, field, value);
-      // Lógica de atualização...
+  // Função para buscar configurações
+  const fetchSettings = async () => {
+    setLoading(true);
+      setError(null); // Limpa erro anterior
+      try {
+          const response = await fetch('/api/salon/settings'); // Chamar nossa API route
+          if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(errorData.message || 'Falha ao carregar configurações');
+          }
+          const data = await response.json();
+
+          // Parse clientRequiredFields se for string JSON
+          if (data.clientRequiredFields && typeof data.clientRequiredFields === 'string') {
+               try {
+                  data.clientRequiredFields = JSON.parse(data.clientRequiredFields);
+               } catch (e) {
+                  console.error("Erro ao parsear clientRequiredFields:", e);
+                  data.clientRequiredFields = { phone: true, email: false }; // Fallback
+               }
+          } else if (!data.clientRequiredFields) {
+              data.clientRequiredFields = { phone: true, email: false }; // Default se nulo/undefined
+          }
+
+
+          // Inicializar estado whatsapp (se necessário, backend pode retornar isso)
+          // Por enquanto, mantemos a lógica local de inicialização
+          setSettings({
+              ...data,
+              // Adicionar campos de UI se não vierem do backend
+              whatsappConnected: data.whatsappStatus === 'CONNECTED', // Exemplo
+              whatsappPhone: data.whatsappPhone || '',
+              whatsappCountryCode: data.whatsappCountryCode || '+55',
+          });
+
+          // Lógica para inicializar estado local de whatsappPhone/CountryCode
+          // (Ajustar conforme o que o backend /api/salon/settings retorna)
+          if (data.whatsappStatus === 'CONNECTED' && data.whatsappPhone) {
+               const phoneDigits = data.whatsappPhone.replace(/\D/g, '');
+               // ... (lógica de detecção de DDI existente) ...
+               setWhatsappPhone(phoneDigits); // Ajustar se necessário
+          }
+
+      } catch (err) {
+          console.error("Erro ao buscar configurações:", err);
+          setError(err instanceof Error ? err.message : 'Erro desconhecido ao carregar.');
+          setSettings(null); // Limpar settings em caso de erro
+      } finally {
+          setLoading(false);
+      }
+  };
+
+
+  useEffect(() => {
+    fetchSettings(); // Chamar a função de busca
+  }, []);
+
+  // Atualizado para lidar com clientRequiredFields
+  const handleInputChange = (
+    field: keyof ExtendedSettingsFormData | `clientRequiredFields.${'phone' | 'email'}`,
+    value: any
+  ) => {
        setSettings(prev => {
         if (!prev) return null;
-        const updatedHours = { ...prev.business_hours };
-        // Implementar a lógica de atualização profunda aqui
-        return { ...prev, business_hours: updatedHours };
+
+      if (field.startsWith('clientRequiredFields.')) {
+        const subField = field.split('.')[1] as 'phone' | 'email';
+        return {
+          ...prev,
+          clientRequiredFields: {
+            ...(prev.clientRequiredFields ?? { phone: true, email: false }), // Garante objeto base
+            [subField]: value,
+          },
+        };
+      } else {
+        // Correção: Garantir que field seja uma chave válida de ExtendedSettingsFormData
+        const validField = field as keyof ExtendedSettingsFormData;
+        return { ...prev, [validField]: value };
+      }
     });
   }
 
+  const handleBusinessHoursChange = (day: keyof BusinessHours, field: string, value: any) => {
+     console.log("Atualizar horário:", day, field, value);
+     setSettings(prev => {
+       if (!prev || !prev.business_hours) return prev;
+       const dayKey = day as keyof BusinessHours; // Tipagem
+       const currentDaySchedule = prev.business_hours[dayKey];
+
+       let updatedDaySchedule: DaySchedule;
+
+       if (field === 'isOpen') {
+           updatedDaySchedule = value ? { isOpen: true, slots: [{ start: "09:00", end: "18:00" }] } : null;
+       } else if (currentDaySchedule?.isOpen && (field === 'start' || field === 'end')) {
+           // Garante que temos um slot antes de atualizar
+           const updatedSlot = { ...(currentDaySchedule.slots[0] ?? { start: '', end: '' }), [field]: value };
+           updatedDaySchedule = { ...currentDaySchedule, slots: [updatedSlot] };
+       } else {
+            // Não faz nada se o dia está fechado ou o campo é inválido
+           return prev;
+       }
+
+       return {
+         ...prev,
+         business_hours: {
+           ...prev.business_hours,
+           [dayKey]: updatedDaySchedule,
+         },
+       };
+    });
+  }
+
+  // handleSave atualizado
   const handleSave = async (tab: string) => {
-    setSaving(true);
-    console.log(`Salvando aba: ${tab}`, settings);
-    // Simular chamada API
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setSaving(false);
+    if (!settings) return;
+
+    setSavingTabs(prev => ({ ...prev, [tab]: true }));
+
+    let payload: Partial<ExtendedSettingsFormData> = {};
+    // Usar snake_case como esperado pelo backend
+    if (tab === 'general') {
+        payload = {
+            appointment_interval: settings.appointment_interval, // snake_case
+            booking_lead_time: settings.booking_lead_time,     // snake_case
+            booking_cancel_limit: settings.booking_cancel_limit, // snake_case
+            clientRequiredFields: settings.clientRequiredFields,
+            weekStartDay: settings.weekStartDay,
+        };
+    } else if (tab === 'whatsapp') {
+         payload = {
+            evolution_api_url: settings.evolution_api_url,     // snake_case
+            evolution_api_key: settings.evolution_api_key,     // snake_case
+            evolution_instance_name: settings.evolution_instance_name, // snake_case
+        };
+    } else if (tab === 'ai') {
+        payload = {
+            ai_bot_enabled: settings.ai_bot_enabled,         // snake_case
+        };
+    } else {
+        console.warn("Tentativa de salvar aba desconhecida:", tab);
+        setSavingTabs(prev => ({ ...prev, [tab]: false }));
+        return;
+    }
+
+     console.log(`Salvando aba: ${tab}`, payload);
+
+
+    try {
+        const response = await fetch('/api/salon/settings', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+             console.error("Erro ao salvar API:", errorData);
+             let description = 'Falha ao salvar configurações';
+             if (errorData.message && Array.isArray(errorData.message) && errorData.message.length > 0) {
+                 description = errorData.message.join(', ');
+             } else if (errorData.message) {
+                 description = errorData.message;
+             }
+            throw new Error(description);
+        }
+
     toast({ title: "Sucesso", description: `Configurações da aba ${tab} salvas!` });
+
+    } catch (err) {
+        console.error(`Erro ao salvar aba ${tab}:`, err);
+        toast({
+            title: "Erro ao Salvar",
+            // Tratar tipo unknown
+            description: err instanceof Error ? err.message : 'Ocorreu um erro desconhecido',
+            variant: "destructive",
+        });
+    } finally {
+       setSavingTabs(prev => ({ ...prev, [tab]: false }));
+    }
   }
 
   // Apenas Dono do Salão pode editar configurações
   const canManage = user?.role === UserRole.SALON_OWNER;
+
+   // Tratar estado de erro global
+   if (error && !loading) {
+       return (
+           <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] text-red-600">
+               <p>Erro ao carregar configurações:</p>
+               <p>{error}</p>
+               <Button onClick={fetchSettings} variant="outline" className="mt-4">Tentar Novamente</Button>
+           </div>
+       );
+   }
 
    if (loading || !settings) {
      return <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">Carregando configurações...</div>;
@@ -233,7 +383,8 @@ export default function SettingsPage() {
       console.error('Erro ao conectar WhatsApp:', error);
       toast({
         title: "Erro",
-        description: error.message || "Não foi possível conectar o WhatsApp. Tente novamente.",
+        // Tratar tipo unknown
+        description: error instanceof Error ? error.message : "Não foi possível conectar o WhatsApp. Tente novamente.",
         variant: "destructive",
       });
       setConnecting(false);
@@ -296,7 +447,8 @@ export default function SettingsPage() {
       setConnecting(false);
       toast({
         title: "Erro",
-        description: error.message || "Falha ao verificar status do WhatsApp",
+        // Tratar tipo unknown
+        description: error instanceof Error ? error.message : "Falha ao verificar status do WhatsApp",
         variant: "destructive",
       });
     }
@@ -322,7 +474,7 @@ export default function SettingsPage() {
         <Tabs defaultValue="general">
           <TabsList className="grid w-full grid-cols-3 mb-6">
             <TabsTrigger value="general">Geral</TabsTrigger>
-            <TabsTrigger value="whatsapp">WhatsApp (Evolution)</TabsTrigger>
+            <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
             <TabsTrigger value="ai">Bot IA</TabsTrigger>
           </TabsList>
 
@@ -335,50 +487,152 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-4">
-                  <Label className="text-base">Horários de Funcionamento</Label>
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {Object.entries(settings.business_hours).map(([day, schedule]) => (
-                      <DayScheduleInput
-                        key={day}
-                        day={day}
-                        schedule={schedule}
-                        onChange={(value) => {
-                          handleInputChange('business_hours', {
-                            ...settings.business_hours,
-                            [day]: value
-                          })
-                        }}
-                        disabled={!canManage || saving}
-                      />
-                    ))}
+                  <Label className="text-base font-semibold">Horários de Funcionamento</Label>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableBody>
+                        {/* Usar a ordem correta dos dias */}
+                        {settings.business_hours &&
+                          getOrderedDays(settings.weekStartDay).map((dayKey) => {
+                            const schedule = settings.business_hours![dayKey as keyof BusinessHours]; // Acessar com ! pois verificamos antes
+                            return (
+                            <TableRow key={dayKey}>
+                              <TableCell className="font-medium capitalize w-[120px]"> {/* Ajuste largura */}
+                                 {/* Usar nome em português */}
+                                {daysOfWeekPortuguese[dayKey] || dayKey}
+                              </TableCell>
+                              <TableCell className="w-[80px]">
+                                <Switch
+                                  checked={schedule?.isOpen ?? false}
+                                  onCheckedChange={(checked) => {
+                                    handleBusinessHoursChange(
+                                      dayKey as keyof BusinessHours,
+                                      "isOpen",
+                                      checked,
+                                    );
+                                  }}
+                                  disabled={!canManage || savingTabs["general"]}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                {schedule?.isOpen ? (
+                                  <div className="flex items-center gap-2"> {/* Alinhar itens */}
+                                    <Input
+                                      type="time"
+                                      className="w-[100px]"
+                                      value={schedule.slots[0]?.start || ""}
+                                      onChange={(e) => {
+                                        handleBusinessHoursChange(
+                                          dayKey as keyof BusinessHours,
+                                          "start",
+                                          e.target.value,
+                                        );
+                                      }}
+                                      disabled={!canManage || savingTabs["general"]}
+                                    />
+                                    <span className="text-muted-foreground">-</span> {/* Traço mais sutil */}
+                                    <Input
+                                      type="time"
+                                      className="w-[100px]"
+                                      value={schedule.slots[0]?.end || ""}
+                                      onChange={(e) => {
+                                        handleBusinessHoursChange(
+                                          dayKey as keyof BusinessHours,
+                                          "end",
+                                          e.target.value,
+                                        );
+                                      }}
+                                      disabled={!canManage || savingTabs["general"]}
+                                    />
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-muted-foreground">
+                                    Fechado
+                                  </span>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                            );
+                          })}
+                      </TableBody>
+                    </Table>
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-4 border-t pt-6">
+                   <Label className="text-base font-semibold">Regras de Agendamento</Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                       <div>
+                          {/* Labels em português */}
+                          <Label htmlFor="appointmentInterval">Intervalo entre horários (min)</Label>
+                          <Input id="appointmentInterval" type="number" value={settings.appointment_interval ?? 0}
+                                 onChange={(e: ChangeEvent<HTMLInputElement>) => handleInputChange('appointment_interval', parseInt(e.target.value) || 0)}
+                                 disabled={!canManage || savingTabs['general']} />
+                       </div>
                    <div>
-                      <Label htmlFor="interval">Intervalo entre horários (min)</Label>
-                      <Input id="interval" type="number" value={settings.appointment_interval} 
-                             onChange={(e: ChangeEvent<HTMLInputElement>) => handleInputChange('appointment_interval', parseInt(e.target.value))} 
-                             disabled={!canManage || saving} />
+                          <Label htmlFor="bookingLeadTime">Antecedência mínima (hr)</Label>
+                          <Input id="bookingLeadTime" type="number" value={settings.booking_lead_time ?? 0}
+                                 onChange={(e: ChangeEvent<HTMLInputElement>) => handleInputChange('booking_lead_time', parseInt(e.target.value) || 0)}
+                                 disabled={!canManage || savingTabs['general']} />
                    </div>
                    <div>
-                      <Label htmlFor="leadTime">Antecedência mín. agend. (horas)</Label>
-                      <Input id="leadTime" type="number" value={settings.booking_lead_time} 
-                             onChange={(e: ChangeEvent<HTMLInputElement>) => handleInputChange('booking_lead_time', parseInt(e.target.value))} 
-                             disabled={!canManage || saving} />
+                          <Label htmlFor="bookingCancelLimit">Limite p/ Cancelar (hr)</Label>
+                          <Input id="bookingCancelLimit" type="number" value={settings.booking_cancel_limit ?? 0}
+                                 onChange={(e: ChangeEvent<HTMLInputElement>) => handleInputChange('booking_cancel_limit', parseInt(e.target.value) || 0)}
+                                 disabled={!canManage || savingTabs['general']} />
                    </div>
                    <div>
-                      <Label htmlFor="cancelLimit">Limite cancelamento (horas)</Label>
-                      <Input id="cancelLimit" type="number" value={settings.booking_cancel_limit} 
-                             onChange={(e: ChangeEvent<HTMLInputElement>) => handleInputChange('booking_cancel_limit', parseInt(e.target.value))} 
-                             disabled={!canManage || saving} />
+                            <Label htmlFor="weekStartDay">Primeiro dia da semana</Label>
+                            <Select
+                                value={settings.weekStartDay?.toString() ?? '1'}
+                                onValueChange={(value) => handleInputChange('weekStartDay', parseInt(value))}
+                                disabled={!canManage || savingTabs['general']}
+                            >
+                                <SelectTrigger id="weekStartDay">
+                                <SelectValue placeholder="Selecione..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                {/* Opções em português */}
+                                <SelectItem value="0">Domingo</SelectItem>
+                                <SelectItem value="1">Segunda-feira</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Campos Obrigatórios Cliente */}
+                <div className="space-y-4 border-t pt-6">
+                    <Label className="text-base font-semibold">Informações Obrigatórias do Cliente</Label>
+                    <p className="text-sm text-muted-foreground">
+                        Defina quais informações são obrigatórias ao cadastrar ou editar um cliente.
+                    </p>
+                    <div className="space-y-2">
+                       <div className="flex items-center space-x-2">
+                           <Switch
+                               id="requireClientPhone"
+                               checked={settings.clientRequiredFields?.phone ?? true}
+                               onCheckedChange={(checked: boolean) => handleInputChange('clientRequiredFields.phone', checked)}
+                               disabled={!canManage || savingTabs['general']}
+                           />
+                           <Label htmlFor="requireClientPhone">Exigir Telefone do Cliente</Label>
+                       </div>
+                       <div className="flex items-center space-x-2">
+                           <Switch
+                               id="requireClientEmail"
+                               checked={settings.clientRequiredFields?.email ?? false}
+                               onCheckedChange={(checked: boolean) => handleInputChange('clientRequiredFields.email', checked)}
+                               disabled={!canManage || savingTabs['general']}
+                           />
+                           <Label htmlFor="requireClientEmail">Exigir Email do Cliente</Label>
+                       </div>
                    </div>
                 </div>
               </CardContent>
               {canManage && (
                  <CardFooter className="border-t px-6 py-4">
-                   <Button onClick={() => handleSave('general')} disabled={saving}>
-                     {saving ? 'Salvando...' : 'Salvar Configurações Gerais'}
+                   <Button onClick={() => handleSave('general')} disabled={savingTabs['general']}>
+                     {savingTabs['general'] ? 'Salvando...' : 'Salvar Configurações Gerais'}
                    </Button>
                 </CardFooter>
               )}
@@ -402,7 +656,6 @@ export default function SettingsPage() {
                           id="whatsappPhoneInput"
                           value={whatsappPhone}
                           onChange={(value) => setWhatsappPhone(value)}
-                          onCountryChange={setWhatsappCountryCode}
                           defaultCountryCode={whatsappCountryCode}
                           disabled={connecting || !canManage}
                           required
@@ -445,7 +698,9 @@ export default function SettingsPage() {
                       <div>
                         <p className="font-medium">WhatsApp Conectado</p>
                         <p className="text-sm text-muted-foreground">
-                          Número: {PhoneInput.formatPhoneNumber(settings.whatsappPhone || '', settings.whatsappCountryCode || '+55') || 'N/A'}
+                          {/* Corrigido: Número formatado (lógica movida para dentro do componente se necessário) */}
+                          {/* Idealmente, o backend retornaria o número já formatado ou o PhoneInput faria isso */}
+                           Número: {settings.whatsappPhone || 'N/A'}
                         </p>
                       </div>
                     </div>
@@ -457,35 +712,6 @@ export default function SettingsPage() {
                   </div>
                 )}
               </CardContent>
-              {canManage && (
-                <CardFooter className="border-t px-6 py-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-                        <div>
-                          <Label htmlFor="evoUrl">URL da API Evolution</Label>
-                          <Input id="evoUrl" placeholder="https://seu.dominio.evolution" value={settings.evolution_api_url || ''} 
-                                 onChange={(e: ChangeEvent<HTMLInputElement>) => handleInputChange('evolution_api_url', e.target.value)} 
-                                 disabled={!canManage || saving} />
-                        </div>
-                        <div>
-                          <Label htmlFor="evoKey">Chave da API (apikey)</Label>
-                          <Input id="evoKey" type="password" placeholder="SuaChaveSecreta" value={settings.evolution_api_key || ''} 
-                                 onChange={(e: ChangeEvent<HTMLInputElement>) => handleInputChange('evolution_api_key', e.target.value)} 
-                                 disabled={!canManage || saving} />
-                        </div>
-                        <div>
-                           <Label htmlFor="evoInstance">Nome da Instância</Label>
-                           <Input id="evoInstance" placeholder="NomeUnicoInstancia" value={settings.evolution_instance_name || ''} 
-                                  onChange={(e: ChangeEvent<HTMLInputElement>) => handleInputChange('evolution_instance_name', e.target.value)} 
-                                  disabled={!canManage || saving} />
-                        </div>
-                    </div>
-                     {canManage && (
-                       <Button onClick={() => handleSave('whatsapp')} disabled={saving} className="mt-4 ml-auto"> 
-                         {saving ? 'Salvando...' : 'Salvar Configurações API'}
-                       </Button>
-                     )}
-                </CardFooter>
-              )}
             </Card>
           </TabsContent>
 
@@ -498,33 +724,16 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                  <div className="flex items-center space-x-2">
-                    <Switch id="aiEnabled" checked={settings.ai_bot_enabled} 
+                    <Switch id="aiEnabled" checked={settings.ai_bot_enabled ?? false}
                             onCheckedChange={(checked: boolean) => handleInputChange('ai_bot_enabled', checked)}
-                            disabled={!canManage || saving} />
+                            disabled={!canManage || savingTabs['ai']} />
                     <Label htmlFor="aiEnabled">Ativar Bot IA</Label>
-                 </div>
-                 <div>
-                  <Label htmlFor="aiModel">Modelo de Linguagem (LLM)</Label>
-                  <Input id="aiModel" placeholder="ex: mistralai/Mixtral-8x7B-Instruct-v0.1" value={settings.ai_bot_model || ''}
-                         onChange={(e: ChangeEvent<HTMLInputElement>) => handleInputChange('ai_bot_model', e.target.value)}
-                         disabled={!canManage || saving || !settings.ai_bot_enabled} />
-                   <p className="text-sm text-muted-foreground mt-1">Nome do modelo (compatível com DeepInfra ou similar).</p>
-                </div>
-                 <div>
-                  <Label htmlFor="aiPrompt">Template de Prompt</Label>
-                  <Textarea id="aiPrompt" placeholder="Você é um assistente do {salon_name}..." rows={8} 
-                            value={settings.ai_bot_prompt_template || ''}
-                            onChange={(e: ChangeEvent<HTMLTextAreaElement>) => handleInputChange('ai_bot_prompt_template', e.target.value)}
-                            disabled={!canManage || saving || !settings.ai_bot_enabled} />
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Use variáveis como `{'{salon_name}'}`, `{'{services}'}`, `{'{professionals}'}` que serão substituídas dinamicamente.
-                  </p>
                 </div>
               </CardContent>
                {canManage && (
                  <CardFooter className="border-t px-6 py-4">
-                   <Button onClick={() => handleSave('ai')} disabled={saving}>
-                     {saving ? 'Salvando...' : 'Salvar Configurações IA'}
+                   <Button onClick={() => handleSave('ai')} disabled={savingTabs['ai']}>
+                     {savingTabs['ai'] ? 'Salvando...' : 'Salvar Configurações IA'}
                    </Button>
                 </CardFooter>
               )}
@@ -536,23 +745,12 @@ export default function SettingsPage() {
   )
 }
 
-// Adicionar formatação estática ao PhoneInput para uso externo
-PhoneInput.formatPhoneNumber = (value: string, country: string): string => {
-  const numbers = value.replace(/\D/g, "");
-
-  // Adapte esta lógica conforme a formatação definida em phone-input.tsx
-  if (country === "+55") {
-    if (numbers.length <= 2) return `(${numbers}`;
-    if (numbers.length <= 6) return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
-    if (numbers.length <= 10) return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 6)}-${numbers.slice(6)}`;
-    return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
-  }
-  if (country === "+1") {
-    if (numbers.length <= 3) return `(${numbers}`;
-    if (numbers.length <= 6) return `(${numbers.slice(0, 3)}) ${numbers.slice(3)}`;
-    return `(${numbers.slice(0, 3)}) ${numbers.slice(3, 6)}-${numbers.slice(6, 10)}`;
-  }
-  // Adicione outros países se necessário...
-
-  return numbers; 
-};
+// Adicionar constante COUNTRY_CODES (se não estiver importada de outro lugar)
+const COUNTRY_CODES = [
+  { code: "+55", country: "Brasil", flag: "🇧🇷", placeholder: "(11) 99988-7766", maxLength: 11, minLength: 10 }, // Ajustado maxLength e add minLength
+  { code: "+1", country: "EUA", flag: "🇺🇸", placeholder: "(555) 123-4567", maxLength: 10, minLength: 10 }, // Ajustado maxLength e add minLength
+  { code: "+595", country: "Paraguai", flag: "🇵🇾", placeholder: "09XX XXX XXX", maxLength: 10, minLength: 9 }, // Ajustado maxLength e add minLength
+  { code: "+598", country: "Uruguai", flag: "🇺🇾", placeholder: "09X XXX XXX", maxLength: 9, minLength: 9 }, // Ajustado maxLength e add minLength
+  { code: "+351", country: "Portugal", flag: "🇵🇹", placeholder: "9XX XXX XXX", maxLength: 9, minLength: 9 }, // Ajustado maxLength e add minLength
+  { code: "+34", country: "Espanha", flag: "🇪🇸", placeholder: "6XX XXX XXX", maxLength: 9, minLength: 9 }, // Ajustado maxLength e add minLength
+];

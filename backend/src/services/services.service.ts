@@ -91,10 +91,13 @@ export class ServicesService {
       return { message: "Serviço removido com sucesso." };
     } catch (error) {
       // Captura erro de restrição de chave estrangeira (comum com delete)
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') { 
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2003"
+      ) {
         // Código P2003 geralmente indica falha de restrição de chave estrangeira
         throw new ForbiddenException(
-          'Não é possível excluir este serviço pois ele está associado a agendamentos existentes.',
+          "Não é possível excluir este serviço pois ele está associado a agendamentos existentes.",
         );
       }
       // Re-lança outros erros

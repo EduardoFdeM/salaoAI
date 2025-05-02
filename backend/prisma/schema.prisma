@@ -40,6 +40,14 @@ model Salon {
   logoUrl              String?                 @map("logo_url")
   businessHours        Json                    @map("business_hours")
   notificationSettings Json                    @map("notification_settings")
+  clientRequiredFields Json?                   @default("{\"phone\": true, \"email\": false}") @map("client_required_fields")
+  appointmentInterval  Int?                    @default(30) @map("appointment_interval")
+  bookingLeadTime      Int?                    @default(2) @map("booking_lead_time") // Em horas
+  bookingCancelLimit   Int?                    @default(4) @map("booking_cancel_limit") // Em horas
+  evolutionApiUrl      String?                 @map("evolution_api_url")
+  evolutionApiKey      String?                 @map("evolution_api_key")
+  evolutionInstanceName String?                @map("evolution_instance_name")
+  aiBotEnabled         Boolean?                @default(false) @map("ai_bot_enabled")
   version              Int                     @default(1)
   active               Boolean                 @default(true)
   createdAt            DateTime                @default(now()) @map("created_at")
@@ -128,7 +136,7 @@ model Client {
   id        String    @id @default(uuid())
   salonId   String    @map("salon_id")
   name      String
-  phone     String
+  phone     String?
   email     String?  
   notes     String?
   version   Int       @default(1)
@@ -156,6 +164,7 @@ model Appointment {
   status         AppointmentStatus
   price          Float
   notes          String?
+  deleted        Boolean            @default(false)
   version        Int                @default(1)
   createdAt      DateTime           @default(now()) @map("created_at")
   updatedAt      DateTime           @updatedAt @map("updated_at")
@@ -433,10 +442,16 @@ enum Role {
 }
 
 enum AppointmentStatus {
-  PENDING
-  CONFIRMED
-  COMPLETED
-  CANCELLED
+  PENDING           // Agendamento inicial, aguardando confirmação ou pagamento?
+  SCHEDULED         // Confirmado inicialmente pelo sistema/recepcionista
+  CONFIRMED         // Confirmado pelo cliente/salão
+  WAITING           // Cliente chegou, aguardando atendimento
+  IN_PROGRESS       // Em atendimento
+  COMPLETED         // Concluído
+  CANCELLED         // Cancelado (genérico)
+  CANCELLED_BY_CLIENT // Cancelado pelo Cliente
+  CANCELLED_BY_SALON  // Cancelado pelo Salão
+  NO_SHOW           // Não Compareceu
 }
 
 enum ChatbotStatus {

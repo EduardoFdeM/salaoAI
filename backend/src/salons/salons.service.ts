@@ -4,6 +4,7 @@ import {
   ForbiddenException,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
+import { UpdateSalonSettingsDto } from "./dto/update-salon-settings.dto";
 import {
   Salon,
   SalonUser,
@@ -55,7 +56,12 @@ export class SalonsService {
         },
         include: {
           client: true,
-          professional: true,
+          professional: {
+            // Incluir user dentro de professional
+            include: {
+              user: true,
+            },
+          },
           service: true,
         },
         orderBy: { startTime: "asc" },
@@ -83,28 +89,148 @@ export class SalonsService {
       }),
     ]);
 
-    // Calcular receita do dia (usando dados reais dos agendamentos quando disponíveis)
+    // Calcular datas para os últimos 30 dias
+    const today = new Date();
+    const thirtyDaysAgo = new Date(new Date().setDate(today.getDate() - 30));
+
+    // Buscar agendamentos dos últimos 30 dias para cálculo de topServices/Professionals
+    const recentAppointments = await this.prisma.appointment.findMany({
+      where: {
+        salonId,
+        startTime: {
+          gte: thirtyDaysAgo,
+          lte: today,
+        },
+        // Opcional: considerar apenas agendamentos concluídos?
+        // status: AppointmentStatus.COMPLETED,
+      },
+      select: {
+        serviceId: true,
+        professionalId: true,
+        // Não precisamos mais buscar nomes aqui, já que temos os IDs
+      },
+    });
+
+    // Calcular Top Serviços
+    const serviceCounts = recentAppointments.reduce(
+      (acc: Record<string, number>, app) => {
+        if (app.serviceId) {
+          acc[app.serviceId] = (acc[app.serviceId] || 0) + 1;
+        }
+        return acc;
+      },
+      {},
+    );
+
+    const topServiceIds = Object.entries(serviceCounts)
+      .sort(([, countA], [, countB]) => countB - countA)
+      .slice(0, 3)
+      .map(([id]) => id);
+
+    const topServicesDetails = await this.prisma.service.findMany({
+      where: { id: { in: topServiceIds }, salonId },
+      select: { id: true, name: true },
+    });
+
+    const topServices = topServiceIds.map((id) => {
+      const detail = topServicesDetails.find((s) => s.id === id);
+      return {
+        id,
+        name: detail?.name || "Serviço Desconhecido",
+        count: serviceCounts[id],
+      };
+    });
+
+    // Calcular Top Profissionais
+    const professionalCounts = recentAppointments.reduce(
+      (acc: Record<string, number>, app) => {
+        if (app.professionalId) {
+          acc[app.professionalId] = (acc[app.professionalId] || 0) + 1;
+        }
+        return acc;
+      },
+      {},
+    );
+
+    const topProfessionalIds = Object.entries(professionalCounts)
+      .sort(([, countA], [, countB]) => countB - countA)
+      .slice(0, 3)
+      .map(([id]) => id);
+
+    const topProfessionalsDetails = await this.prisma.salonUser.findMany({
+      where: { id: { in: topProfessionalIds }, salonId },
+      select: { id: true, user: { select: { name: true } } },
+    });
+
+    const topProfessionals = topProfessionalIds.map((id) => {
+      const detail = topProfessionalsDetails.find((p) => p.id === id);
+      return {
+        id,
+        name: detail?.user?.name || "Profissional Desconhecido",
+        count: professionalCounts[id],
+      };
+    });
+
+    // Calcular receita do dia
     const dailyRevenue = todayAppointments.reduce((sum, appointment) => {
-      // Verificar se temos o preço diretamente no agendamento ou pelo serviço relacionado
       const price = appointment.price || appointment.service?.price || 0;
-      return sum + price;
+      // Considerar apenas concluídos para receita?
+      // if (appointment.status === AppointmentStatus.COMPLETED) {
+      //   return sum + price;
+      // }
+      return sum + price; // Ou soma todos confirmados/em andamento etc.
     }, 0);
 
-    // Calcular receita do mês (mock inicialmente)
-    const monthlyRevenue = dailyRevenue * 20; // Simulação básica
+    // Calcular receita do mês (buscar agendamentos concluídos do mês)
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const endOfMonth = new Date(
+      today.getFullYear(),
+      today.getMonth() + 1,
+      0,
+      23,
+      59,
+      59,
+      999,
+    );
+
+    const completedMonthlyAppointments = await this.prisma.appointment.findMany(
+      {
+        where: {
+          salonId,
+          status: AppointmentStatus.COMPLETED,
+          endTime: {
+            // Usar endTime para garantir que foi concluído no mês
+            gte: startOfMonth,
+            lte: endOfMonth,
+          },
+        },
+        select: {
+          price: true,
+          service: { select: { price: true } },
+        },
+      },
+    );
+
+    const monthlyRevenue = completedMonthlyAppointments.reduce((sum, app) => {
+      const price = app.price || app.service?.price || 0;
+      return sum + price;
+    }, 0);
 
     return {
       totalAppointments,
       todayAppointmentsCount: todayAppointments.length,
-      todayAppointments,
+      todayAppointments: todayAppointments.map((appt) => ({
+        // Mapear para incluir nome do usuário profissional
+        ...appt,
+        professionalName: appt.professional?.user?.name,
+      })),
       professionals,
       services,
       clients,
       dailyRevenue,
       monthlyRevenue,
-      // Outros dados relevantes para o dashboard
-      topServices: [], // Placeholder
-      topProfessionals: [], // Placeholder
+      topServices,
+      topProfessionals,
     };
   }
 
@@ -138,19 +264,29 @@ export class SalonsService {
     });
   }
 
-  async getSalonSettings(salonId: string) {
-    const settings = await this.prisma.salonSetting.findMany({
-      where: {
-        salonId,
+  async getSalonSettings(salonId: string): Promise<Partial<Salon>> {
+    const salon = await this.prisma.salon.findUnique({
+      where: { id: salonId },
+      select: {
+        businessHours: true,
+        appointmentInterval: true,
+        bookingLeadTime: true,
+        bookingCancelLimit: true,
+        clientRequiredFields: true,
+        evolutionApiUrl: true,
+        evolutionApiKey: true,
+        evolutionInstanceName: true,
+        aiBotEnabled: true,
       },
     });
 
-    const settingsObject: { [key: string]: any } = {};
-    settings.forEach((setting) => {
-      settingsObject[setting.key] = setting.value;
-    });
+    if (!salon) {
+      throw new NotFoundException(
+        `Configurações para Salão com ID ${salonId} não encontradas.`,
+      );
+    }
 
-    return settingsObject;
+    return salon;
   }
 
   async getSalonByUserId(userId: string): Promise<Salon | null> {
@@ -236,24 +372,19 @@ export class SalonsService {
       serviceId?: string;
     },
   ) {
-    // Verificar se o usuário tem acesso ao salão
     await this.validateUserSalonAccess(userId, salonId);
 
-    // Construir a query com filtros
     const where: Prisma.AppointmentWhereInput = {
       salonId,
     };
 
-    // Aplicar filtros adicionais se fornecidos
     if (filters) {
-      // Filtro por data de início
       if (filters.startDate) {
         where.startTime = {
           gte: new Date(filters.startDate),
         };
       }
 
-      // Filtro por data de fim
       if (filters.endDate) {
         const endDate = new Date(filters.endDate);
         if (
@@ -261,33 +392,26 @@ export class SalonsService {
           typeof where.startTime === "object" &&
           "gte" in where.startTime
         ) {
-          // Se já existe um filtro gte, adiciona lte
           where.startTime = { ...where.startTime, lte: endDate };
         } else if (where.startTime instanceof Date) {
-          // Se startTime é apenas uma data (do filtro gte anterior), cria o objeto
           where.startTime = { gte: where.startTime, lte: endDate };
         } else {
-          // Se não há filtro gte, define apenas lte
           where.startTime = { lte: endDate };
         }
       }
 
-      // Filtro por status
       if (filters.status) {
         where.status = filters.status;
       }
 
-      // Filtro por profissional
       if (filters.professionalId) {
         where.professionalId = filters.professionalId;
       }
 
-      // Filtro por cliente
       if (filters.clientId) {
         where.clientId = filters.clientId;
       }
 
-      // Filtro por serviço
       if (filters.serviceId) {
         where.serviceId = filters.serviceId;
       }
@@ -309,7 +433,6 @@ export class SalonsService {
       },
     });
 
-    // Transformar para o formato de resposta
     return appointments.map((appointment) => {
       const client = appointment.client;
       const service = appointment.service;
@@ -358,4 +481,58 @@ export class SalonsService {
       throw new ForbiddenException("Usuário não tem acesso a este salão");
     }
   }
-} 
+
+  async findOneWithDetails(id: string): Promise<Salon | null> {
+    return this.prisma.salon.findUnique({
+      where: { id },
+    });
+  }
+
+  async updateSettings(
+    salonId: string,
+    data: UpdateSalonSettingsDto,
+  ): Promise<Salon> {
+    console.log("Recebido para salvar em salonId:", salonId, "Dados:", data);
+
+    const dataToUpdate: Prisma.SalonUpdateInput = {
+      appointmentInterval: data.appointmentInterval,
+      bookingLeadTime: data.bookingLeadTime,
+      bookingCancelLimit: data.bookingCancelLimit,
+      evolutionApiUrl: data.evolutionApiUrl,
+      evolutionApiKey: data.evolutionApiKey,
+      evolutionInstanceName: data.evolutionInstanceName,
+      aiBotEnabled: data.aiBotEnabled,
+      clientRequiredFields:
+        data.clientRequiredFields !== undefined
+          ? { ...data.clientRequiredFields }
+          : undefined,
+    };
+
+    Object.keys(dataToUpdate).forEach((key) => {
+      const K = key as keyof Prisma.SalonUpdateInput;
+      if (dataToUpdate[K] === undefined) {
+        delete dataToUpdate[K];
+      }
+    });
+
+    try {
+      const updatedSalon = await this.prisma.salon.update({
+        where: { id: salonId },
+        data: dataToUpdate,
+      });
+      console.log("Salão atualizado:", updatedSalon);
+      return updatedSalon;
+    } catch (error) {
+      console.error("Erro ao atualizar configurações do salão:", error);
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2025"
+      ) {
+        throw new NotFoundException(
+          `Salão com ID ${salonId} não encontrado.`,
+        );
+      }
+      throw error;
+    }
+  }
+}

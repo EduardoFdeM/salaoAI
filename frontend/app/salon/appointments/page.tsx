@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Calendar, dateFnsLocalizer, View } from 'react-big-calendar'
-import { format, parse, startOfWeek, getDay, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays } from 'date-fns'
+import { format, parse, startOfWeek, getDay, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, isValid, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
@@ -11,9 +11,11 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { PlusCircle, Edit, CalendarDays, ListFilter, List } from 'lucide-react'
-import { Appointment, AppointmentStatus, Client, Professional, Service } from '@/types/salon'
+import { PlusCircle, Edit, CalendarDays, ListFilter, List, Trash2 } from 'lucide-react'
+import { Appointment, AppointmentStatus, Client, Professional, Service, SalonUser } from '@/types/salon'
 import { AppointmentForm } from '@/components/appointments/appointment-form'
+import { AppointmentDetails } from '@/components/appointments/appointment-details'
+import { Calendar as DatePicker } from "@/components/ui/calendar"
 
 // Configuração do localizador para o calendário
 const locales = {
@@ -27,33 +29,6 @@ const localizer = dateFnsLocalizer({
   getDay,
   locales,
 })
-
-// Mock data - Substituir pela chamada à API real
-const MOCK_CLIENTS_MAP: Record<string, Pick<Client, 'id' | 'name'>> = {
-  'c1': { id: 'c1', name: 'Ana Silva'},
-  'c2': { id: 'c2', name: 'Carlos Mendes'},
-  'c3': { id: 'c3', name: 'Julia Pereira'},
-};
-const MOCK_PROFESSIONALS_MAP: Record<string, Pick<Professional, 'id' | 'name'>> = {
-  'p1': { id: 'p1', name: 'Marcos Oliveira'},
-  'p2': { id: 'p2', name: 'Camila Costa'},
-  'p3': { id: 'p3', name: 'Renata Lima'},
-};
- const MOCK_SERVICES_MAP: Record<string, Pick<Service, 'id' | 'name'>> = {
-  's1': { id: 's1', name: 'Corte Feminino'},
-  's2': { id: 's2', name: 'Barba'},
-  's3': { id: 's3', name: 'Coloração'},
-  's4': { id: 's4', name: 'Manicure'},
-};
-
-const MOCK_APPOINTMENTS: Appointment[] = [
-  { id: 'a1', start_time: '2023-11-15T09:00:00Z', end_time: '2023-11-15T10:00:00Z', client_id: 'c1', professional_id: 'p1', service_id: 's1', salon_id: '1', status: AppointmentStatus.CONFIRMED },
-  { id: 'a2', start_time: '2023-11-15T10:30:00Z', end_time: '2023-11-15T11:00:00Z', client_id: 'c2', professional_id: 'p2', service_id: 's2', salon_id: '1', status: AppointmentStatus.SCHEDULED },
-  { id: 'a3', start_time: '2023-11-15T11:00:00Z', end_time: '2023-11-15T12:30:00Z', client_id: 'c3', professional_id: 'p2', service_id: 's3', salon_id: '1', status: AppointmentStatus.CONFIRMED },
-  { id: 'a4', start_time: '2023-11-15T14:00:00Z', end_time: '2023-11-15T14:45:00Z', client_id: 'c1', professional_id: 'p1', service_id: 's1', salon_id: '1', status: AppointmentStatus.COMPLETED },
-  { id: 'a5', start_time: '2023-11-16T15:30:00Z', end_time: '2023-11-16T16:15:00Z', client_id: 'c2', professional_id: 'p3', service_id: 's4', salon_id: '1', status: AppointmentStatus.SCHEDULED },
-  { id: 'a6', start_time: '2023-11-16T16:00:00Z', end_time: '2023-11-16T17:00:00Z', client_id: 'c3', professional_id: 'p1', service_id: 's1', salon_id: '1', status: AppointmentStatus.CANCELLED_BY_CLIENT },
-];
 
 // Tipos para os filtros
 type SortField = 'date' | 'client' | 'service' | 'professional' | 'status'
@@ -86,23 +61,35 @@ function getStatusBadgeVariant(status: AppointmentStatus): "default" | "secondar
 }
 
 function formatStatus(status: AppointmentStatus): string {
+  // Garantir que todos os status do enum sejam mapeados
   const map: Record<AppointmentStatus, string> = {
+    [AppointmentStatus.PENDING]: 'Pendente', // Adicionado
     [AppointmentStatus.SCHEDULED]: 'Agendado',
     [AppointmentStatus.CONFIRMED]: 'Confirmado',
-    [AppointmentStatus.CANCELLED_BY_CLIENT]: 'Cancelado (Cliente)',
-    [AppointmentStatus.CANCELLED_BY_SALON]: 'Cancelado (Salão)',
-    [AppointmentStatus.COMPLETED]: 'Concluído',
-    [AppointmentStatus.NO_SHOW]: 'Não Compareceu',
     [AppointmentStatus.WAITING]: 'Aguardando',
     [AppointmentStatus.IN_PROGRESS]: 'Em Andamento',
+    [AppointmentStatus.COMPLETED]: 'Concluído',
+    [AppointmentStatus.CANCELLED]: 'Cancelado', // Adicionado
+    [AppointmentStatus.CANCELLED_BY_CLIENT]: 'Cancelado (Cliente)',
+    [AppointmentStatus.CANCELLED_BY_SALON]: 'Cancelado (Salão)',
+    [AppointmentStatus.NO_SHOW]: 'Não Compareceu',
   };
-  return map[status] || status;
+  return map[status] || status.toString(); // Fallback para o próprio valor do enum
 }
 
 export default function AppointmentsPage() {
-  const [appointments, setAppointments] = useState<Appointment[]>(MOCK_APPOINTMENTS)
+  // --- ESTADOS PARA DADOS REAIS ---
+  const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [clients, setClients] = useState<Client[]>([])
+  const [professionals, setProfessionals] = useState<SalonUser[]>([])
+  const [services, setServices] = useState<Service[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  // --- FIM ESTADOS ---
+
   const [view, setView] = useState<'table' | 'calendar'>('table')
   const [showNewAppointment, setShowNewAppointment] = useState(false)
+  const [showDetailsModal, setShowDetailsModal] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | undefined>()
   const [calendarView, setCalendarView] = useState<View>('day')
@@ -116,29 +103,148 @@ export default function AppointmentsPage() {
     sortOrder: 'asc'
   })
 
+  // --- BUSCAR DADOS DA API --- 
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        // Usar Promise.all para buscar dados em paralelo
+        const [clientsRes, professionalsRes, servicesRes, appointmentsRes] = await Promise.all([
+          fetch('/api/salon/clients'),
+          fetch('/api/salon/professionals'),
+          fetch('/api/salon/services'),
+          fetch('/api/salon/appointments') // Usando a API route existente
+        ]);
+
+        // Verificar todas as respostas
+        if (!clientsRes.ok || !professionalsRes.ok || !servicesRes.ok || !appointmentsRes.ok) {
+          // Log detalhado do erro
+          const errorDetails = {
+            clients: { status: clientsRes.status, text: await clientsRes.text().catch(() => 'Error reading text') },
+            professionals: { status: professionalsRes.status, text: await professionalsRes.text().catch(() => 'Error reading text') },
+            services: { status: servicesRes.status, text: await servicesRes.text().catch(() => 'Error reading text') },
+            appointments: { status: appointmentsRes.status, text: await appointmentsRes.text().catch(() => 'Error reading text') },
+          };
+          console.error('Falha ao carregar dados:', errorDetails);
+          throw new Error('Falha ao carregar dados essenciais');
+        }
+
+        // Extrair JSON de todas as respostas
+        const [clientsData, professionalsData, servicesData, appointmentsData] = await Promise.all([
+          clientsRes.json(),
+          professionalsRes.json(),
+          servicesRes.json(),
+          appointmentsRes.json()
+        ]);
+
+        // Log para verificar a estrutura dos dados recebidos
+        console.log("Dados recebidos - Clientes:", clientsData);
+        console.log("Dados recebidos - Profissionais:", professionalsData);
+        console.log("Dados recebidos - Serviços:", servicesData);
+        console.log("Dados recebidos - Agendamentos:", appointmentsData);
+
+        // Atualizar estados
+        setAppointments(appointmentsData);
+        setClients(clientsData);
+        // Garantir que professionalsData seja um array de SalonUser
+        setProfessionals(Array.isArray(professionalsData) ? professionalsData : []); 
+        setServices(servicesData);
+
+      } catch (err: any) {
+        setError(err.message || 'Ocorreu um erro inesperado');
+        console.error("Erro ao buscar dados:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchData();
+  }, []); // Executa na montagem do componente
+  // --- FIM BUSCAR DADOS ---
+
+  // Função para encontrar nome por ID (exemplo para clientes)
+  const getClientName = (appointment: Appointment): string => {
+    return appointment.client?.name || 'Desconhecido';
+  };
+  const getProfessionalName = (appointment: Appointment): string => {
+    return appointment.professional?.user?.name || appointment.professional?.name || 'Desconhecido';
+  };
+  const getServiceName = (appointment: Appointment): string => {
+    return appointment.service?.name || 'Desconhecido';
+  };
+
   // Converter agendamentos para eventos do calendário
   const calendarEvents = appointments.map(appt => ({
     id: appt.id,
-    title: `${MOCK_CLIENTS_MAP[appt.client_id]?.name} - ${MOCK_SERVICES_MAP[appt.service_id]?.name}`,
-    start: new Date(appt.start_time),
-    end: new Date(appt.end_time),
+    title: getClientName(appt),
+    start: new Date(appt.startTime),
+    end: new Date(appt.endTime),
     resource: appt
   }))
 
   const handleAddAppointment = () => {
     setSelectedAppointment(undefined)
     setShowNewAppointment(true)
+    setShowDetailsModal(false)
   }
 
   const handleEditAppointment = (appointment: Appointment) => {
     setSelectedAppointment(appointment)
     setShowNewAppointment(true)
+    setShowDetailsModal(false)
   }
-  
-  const handleSubmitAppointment = (data: Partial<Appointment>) => {
-    // Implementar lógica de criação/edição
-    console.log('Dados do agendamento:', data)
+
+  const handleOpenEditFromDetails = (appointment: Appointment) => {
+    handleEditAppointment(appointment)
+  }
+
+  const handleOpenDetails = (appointment: Appointment) => {
+    setSelectedAppointment(appointment)
+    setShowDetailsModal(true)
     setShowNewAppointment(false)
+  }
+
+  const handleSubmitAppointment = async (data: Partial<Appointment>) => {
+    setLoading(true) // Indicar carregamento
+    setError(null)
+    const isEditing = !!selectedAppointment?.id;
+    const url = isEditing ? `/api/salon/appointments/${selectedAppointment.id}` : '/api/salon/appointments';
+    const method = isEditing ? 'PUT' : 'POST';
+
+    try {
+      const response = await fetch(url, {
+        method: method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Erro ao ${isEditing ? 'atualizar' : 'criar'} agendamento`);
+      }
+
+      const savedAppointment = await response.json();
+
+      // Atualizar a lista local de agendamentos
+      if (isEditing) {
+        setAppointments(prev => 
+          prev.map(appt => appt.id === savedAppointment.id ? savedAppointment : appt)
+        );
+      } else {
+        setAppointments(prev => [...prev, savedAppointment]);
+      }
+      setShowNewAppointment(false) // Fechar modal
+
+    } catch (err: any) {
+      setError(err.message || 'Ocorreu um erro inesperado');
+      console.error("Erro ao salvar agendamento:", err);
+      // Manter modal aberto em caso de erro para o usuário corrigir
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleFilterChange = (newFilters: Partial<FilterState>) => {
@@ -151,13 +257,24 @@ export default function AppointmentsPage() {
       switch (filters.sortBy) {
         case 'date':
           return filters.sortOrder === 'asc' 
-            ? new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
-            : new Date(b.start_time).getTime() - new Date(a.start_time).getTime()
+            ? new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+            : new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
         case 'client':
           return filters.sortOrder === 'asc'
-            ? (MOCK_CLIENTS_MAP[a.client_id]?.name || '').localeCompare(MOCK_CLIENTS_MAP[b.client_id]?.name || '')
-            : (MOCK_CLIENTS_MAP[b.client_id]?.name || '').localeCompare(MOCK_CLIENTS_MAP[a.client_id]?.name || '')
-        // Implementar outros casos de ordenação
+            ? (getClientName(a) || '').localeCompare(getClientName(b) || '')
+            : (getClientName(b) || '').localeCompare(getClientName(a) || '')
+        case 'service':
+          return filters.sortOrder === 'asc'
+            ? (getServiceName(a) || '').localeCompare(getServiceName(b) || '')
+            : (getServiceName(b) || '').localeCompare(getServiceName(a) || '')
+        case 'professional':
+          return filters.sortOrder === 'asc'
+            ? (getProfessionalName(a) || '').localeCompare(getProfessionalName(b) || '')
+            : (getProfessionalName(b) || '').localeCompare(getProfessionalName(a) || '')
+        case 'status':
+          return filters.sortOrder === 'asc'
+            ? getStatusBadgeVariant(a.status) === 'default' ? -1 : 1
+            : getStatusBadgeVariant(b.status) === 'default' ? 1 : -1
         default:
           return 0
       }
@@ -165,11 +282,20 @@ export default function AppointmentsPage() {
   }
 
   const formatDateTime = (isoString: string) => {
-    const date = new Date(isoString)
-    return date.toLocaleString('pt-BR', { 
-      dateStyle: 'short', 
-      timeStyle: 'short' 
-    })
+    if (!isoString) return 'Sem Data';
+    try {
+      // Tentar parsear a data - pode vir como Date ou string
+      const date = typeof isoString === 'string' ? parseISO(isoString) : isoString;
+      if (isValid(date)) { 
+        return format(date, 'dd/MM/yyyy HH:mm', { locale: ptBR }); // Usar date-fns format
+      } else {
+        console.warn("Data inválida recebida para formatDateTime:", isoString);
+        return 'Data Inválida';
+      }
+    } catch (e) {
+      console.error("Erro ao formatar data:", isoString, e);
+      return 'Erro Data';
+    }
   }
 
   // Handlers para ações do calendário
@@ -183,118 +309,242 @@ export default function AppointmentsPage() {
   }, [])
 
   const handleSelectEvent = useCallback((event: any) => {
-    // Quando clicar em um evento no calendário, editar o agendamento
+    // Quando clicar em um evento no calendário, abrir detalhes
     const appointment = event.resource as Appointment
     if (appointment) {
-      handleEditAppointment(appointment)
+      handleOpenDetails(appointment)
     }
   }, [])
 
-  const renderTableView = () => (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Data/Hora</TableHead>
-          <TableHead>Cliente</TableHead>
-          <TableHead className="hidden md:table-cell">Serviço</TableHead>
-          <TableHead className="hidden sm:table-cell">Profissional</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead className="text-right">Ações</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {appointments.length > 0 ? appointments.map((appt) => (
-          <TableRow key={appt.id}>
-            <TableCell className="font-medium">{formatDateTime(appt.start_time)}</TableCell>
-            <TableCell>{MOCK_CLIENTS_MAP[appt.client_id]?.name || 'Desconhecido'}</TableCell>
-            <TableCell className="hidden md:table-cell">{MOCK_SERVICES_MAP[appt.service_id]?.name || 'Desconhecido'}</TableCell>
-            <TableCell className="hidden sm:table-cell">{MOCK_PROFESSIONALS_MAP[appt.professional_id]?.name || 'Desconhecido'}</TableCell>
-            <TableCell>
-              <Badge variant={getStatusBadgeVariant(appt.status)}>
-                {formatStatus(appt.status)}
-              </Badge>
-            </TableCell>
-            <TableCell className="text-right space-x-2">
-              <Button variant="outline" size="icon" onClick={() => handleEditAppointment(appt)}>
-                <Edit className="h-4 w-4" />
-                <span className="sr-only">Editar</span>
-              </Button>
-              {/* Adicionar outras ações como cancelar, confirmar, etc. */}
-            </TableCell>
-          </TableRow>
-        )) : (
-          <TableRow>
-            <TableCell colSpan={6} className="h-24 text-center">
-              Nenhum agendamento encontrado.
-            </TableCell>
-          </TableRow>
-        )}
-      </TableBody>
-    </Table>
-  )
+  const handleCancelAppointment = async (appointmentId: string) => {
+    if (!window.confirm('Tem certeza que deseja cancelar este agendamento?')) {
+      return;
+    }
 
-  const renderCalendarView = () => (
-    <div className="h-[600px] max-w-full">
-      <Calendar
-        localizer={localizer}
-        events={calendarEvents}
-        startAccessor="start"
-        endAccessor="end"
-        view={calendarView}
-        date={calendarDate}
-        onNavigate={handleCalendarNavigate}
-        onView={handleCalendarViewChange}
-        onSelectEvent={handleSelectEvent}
-        views={['day', 'week', 'month']}
-        messages={{
-          next: "Próximo",
-          previous: "Anterior",
-          today: "Hoje",
-          month: "Mês",
-          week: "Semana",
-          day: "Dia"
-        }}
-        culture="pt-BR"
-        popup
-        className="rounded-md bg-background"
-        dayPropGetter={(date) => {
-          const today = new Date()
-          return {
-            className: format(date, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd') ? 'rbc-today' : ''
-          }
-        }}
-        eventPropGetter={(event) => {
-          const appointment = event.resource as Appointment
-          // Personalizar cores com base no status
-          let backgroundColor = 'var(--primary)'
-          
-          if (appointment) {
-            switch (appointment.status) {
-              case AppointmentStatus.CONFIRMED:
-                backgroundColor = 'var(--chart-2)'; // Verde
-                break;
-              case AppointmentStatus.SCHEDULED:
-                backgroundColor = 'var(--chart-4)'; // Amarelo
-                break;
-              case AppointmentStatus.CANCELLED_BY_CLIENT:
-              case AppointmentStatus.CANCELLED_BY_SALON:
-                backgroundColor = 'var(--destructive)'; // Vermelho
-                break;
-              case AppointmentStatus.COMPLETED:
-                backgroundColor = 'var(--chart-3)'; // Azul
-                break;
-              default:
-                break;
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/salon/appointments/${appointmentId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+         let errorMsg = 'Erro ao cancelar agendamento';
+         try {
+            const errorData = await response.json();
+            errorMsg = errorData.message || errorMsg;
+         } catch (e) { /* Ignora erro no json */ }
+         throw new Error(errorMsg);
+      }
+
+      // Remover o agendamento da lista local após sucesso
+      setAppointments(prev => prev.filter(appt => appt.id !== appointmentId));
+      
+      // Comentado: Opção 2 anterior (atualizar status)
+      /*setAppointments(prev => 
+        prev.map(appt => 
+          appt.id === appointmentId 
+            ? { ...appt, status: AppointmentStatus.CANCELLED } 
+            : appt
+        )
+      );*/
+
+    } catch (err: any) {
+      setError(err.message || 'Ocorreu um erro inesperado ao cancelar');
+      console.error("Erro ao cancelar agendamento:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // FILTRAR AGENDAMENTOS ANTES DE ORDENAR
+  const filterAppointments = (appointments: Appointment[]) => {
+    return appointments.filter(appt => {
+      // Filtro por data (apenas data, ignora hora)
+      if (filters.dateRange.start && filters.dateRange.end) {
+        const apptDate = new Date(appt.startTime);
+        const start = new Date(filters.dateRange.start);
+        const end = new Date(filters.dateRange.end);
+        // Zerar hora para comparar apenas data
+        apptDate.setHours(0,0,0,0);
+        start.setHours(0,0,0,0);
+        end.setHours(0,0,0,0);
+        if (apptDate < start || apptDate > end) return false;
+      }
+      // Filtros futuros: profissional, serviço, status...
+      return true;
+    });
+  };
+
+  const renderTableView = () => {
+    if (loading) return <p>Carregando agendamentos...</p>;
+    if (error) return <p className="text-destructive">Erro ao carregar: {error}</p>;
+
+    const sortedAppointments = sortAppointments(filterAppointments(appointments)); // Aplicar filtro e ordenação
+
+    return (
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Data/Hora Início</TableHead>
+            <TableHead>Cliente</TableHead>
+            <TableHead className="hidden md:table-cell">Serviço</TableHead>
+            <TableHead className="hidden sm:table-cell">Profissional</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="text-right">Ações</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {sortedAppointments.length > 0 ? sortedAppointments.map((appt) => (
+            <TableRow key={appt.id}>
+              <TableCell className="font-medium">{formatDateTime(appt.startTime)}</TableCell>
+              <TableCell>{getClientName(appt)}</TableCell>
+              <TableCell className="hidden md:table-cell">{getServiceName(appt)}</TableCell>
+              <TableCell className="hidden sm:table-cell">{getProfessionalName(appt)}</TableCell>
+              <TableCell>
+                <Select
+                  value={appt.status}
+                  onValueChange={async (newStatusValue) => {
+                    const newStatus = newStatusValue as AppointmentStatus; // Cast para o tipo enum
+                    if (newStatus !== appt.status) {
+                      setLoading(true);
+                      try {
+                        const response = await fetch(`/api/salon/appointments/${appt.id}`, {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ status: newStatus }), 
+                        });
+                        if (!response.ok) throw new Error('Erro ao atualizar status');
+                        const updatedAppointment = await response.json(); // Obter resposta completa
+                        setAppointments(prev => prev.map(a => a.id === appt.id ? updatedAppointment : a));
+                      } catch (e) {
+                        alert('Erro ao atualizar status!');
+                        console.error("Erro ao atualizar status:", e);
+                      } finally {
+                        setLoading(false);
+                      }
+                    }
+                  }}
+                  disabled={loading}
+                >
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.values(AppointmentStatus).map(status => (
+                      <SelectItem key={status} value={status}>
+                        {formatStatus(status)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </TableCell>
+              <TableCell className="text-right space-x-2">
+                <Button variant="outline" size="icon" onClick={() => handleEditAppointment(appt)} disabled={loading}>
+                  <Edit className="h-4 w-4" />
+                  <span className="sr-only">Editar</span>
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  size="icon" 
+                  onClick={() => handleCancelAppointment(appt.id)} 
+                  disabled={loading || appt.status === AppointmentStatus.CANCELLED || appt.status === AppointmentStatus.COMPLETED || appt.status === AppointmentStatus.NO_SHOW} // Desabilitar se já cancelado/concluído
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span className="sr-only">Cancelar</span>
+                </Button>
+              </TableCell>
+            </TableRow>
+          )) : (
+            <TableRow>
+              <TableCell colSpan={6} className="h-24 text-center">
+                Nenhum agendamento encontrado.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    );
+  }
+
+  const renderCalendarView = () => {
+    if (loading) return <p>Carregando calendário...</p>;
+    if (error) return <p className="text-destructive">Erro ao carregar: {error}</p>;
+    
+    return (
+      <div className="h-[600px] max-w-full">
+        <Calendar
+          localizer={localizer}
+          events={filterAppointments(appointments).map(appt => ({
+            id: appt.id,
+            title: getClientName(appt),
+            start: new Date(appt.startTime),
+            end: new Date(appt.endTime),
+            resource: appt
+          }))}
+          startAccessor="start"
+          endAccessor="end"
+          view={calendarView}
+          date={calendarDate}
+          onNavigate={handleCalendarNavigate}
+          onView={handleCalendarViewChange}
+          onSelectEvent={handleSelectEvent}
+          views={['day', 'week', 'month']}
+          messages={{
+            next: "Próximo",
+            previous: "Anterior",
+            today: "Hoje",
+            month: "Mês",
+            week: "Semana",
+            day: "Dia"
+          }}
+          culture="pt-BR"
+          popup
+          className="rounded-md bg-background"
+          dayPropGetter={(date) => {
+            const today = new Date()
+            return {
+              className: format(date, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd') ? 'rbc-today' : ''
             }
-          }
-          
-          return {
-            style: { backgroundColor }
-          }
-        }}
-      />
-    </div>
-  )
+          }}
+          eventPropGetter={(event) => {
+            // Temporariamente desabilitar a lógica de cores para teste
+            /*
+            const appointment = event.resource as Appointment
+            let backgroundColor = 'var(--primary)'
+            
+            if (appointment) {
+              switch (appointment.status) {
+                case AppointmentStatus.CONFIRMED:
+                  backgroundColor = 'var(--chart-2)'; 
+                  break;
+                case AppointmentStatus.SCHEDULED:
+                  backgroundColor = 'var(--chart-4)'; 
+                  break;
+                case AppointmentStatus.CANCELLED_BY_CLIENT:
+                case AppointmentStatus.CANCELLED_BY_SALON:
+                case AppointmentStatus.CANCELLED:
+                  backgroundColor = 'var(--destructive)'; 
+                  break;
+                case AppointmentStatus.COMPLETED:
+                  backgroundColor = 'var(--chart-3)'; 
+                  break;
+                default:
+                  break;
+              }
+            }
+            
+            return {
+              style: { backgroundColor }
+            }
+            */
+           return {}; // Retornar objeto vazio para usar estilos padrão
+          }}
+        />
+      </div>
+    )
+  }
 
   return (
     <>
@@ -338,11 +588,65 @@ export default function AppointmentsPage() {
                         </SelectContent>
                       </Select>
                     </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Filtrar por Data</label>
+                      <DatePicker
+                        mode="range"
+                        selected={filters.dateRange.start && filters.dateRange.end ? { from: filters.dateRange.start, to: filters.dateRange.end } : undefined}
+                        onSelect={(range: { from?: Date; to?: Date } | undefined) => {
+                          handleFilterChange({
+                            dateRange: {
+                              start: range?.from ?? null,
+                              end: range?.to ?? null,
+                            },
+                          });
+                        }}
+                        numberOfMonths={1}
+                        locale={ptBR}
+                      />
+                      <div className="flex gap-2 mt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleFilterChange({ dateRange: { start: null, end: null } })}
+                        >
+                          Limpar Data
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            const today = new Date();
+                            handleFilterChange({
+                              dateRange: { start: today, end: today },
+                            });
+                          }}
+                        >
+                          Hoje
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            const today = new Date();
+                            const start = new Date(today);
+                            start.setDate(today.getDate() - today.getDay()); // Domingo
+                            const end = new Date(today);
+                            end.setDate(today.getDate() + (6 - today.getDay())); // Sábado
+                            handleFilterChange({
+                              dateRange: { start, end },
+                            });
+                          }}
+                        >
+                          Esta Semana
+                        </Button>
+                      </div>
+                    </div>
                     {/* Adicionar mais filtros aqui */}
                   </div>
                 </DialogContent>
               </Dialog>
-              <Button onClick={handleAddAppointment} className="w-full sm:w-auto">
+              <Button onClick={handleAddAppointment} className="w-full sm:w-auto" disabled={loading}>
                 <PlusCircle className="mr-2 h-4 w-4" /> Novo Agendamento
               </Button>
             </div>
@@ -363,17 +667,31 @@ export default function AppointmentsPage() {
         </CardHeader>
         <CardContent>
           {view === 'table' ? renderTableView() : renderCalendarView()}
+          {/* Exibir erro geral se houver */}
+          {error && !loading && view !== 'table' && view !== 'calendar' && 
+            <p className="text-destructive mt-4">Erro: {error}</p>
+          }
         </CardContent>
       </Card>
+
+      <AppointmentDetails
+        open={showDetailsModal}
+        onClose={() => setShowDetailsModal(false)}
+        appointment={selectedAppointment}
+        onEdit={handleOpenEditFromDetails}
+      />
 
       <AppointmentForm
         open={showNewAppointment}
         onClose={() => setShowNewAppointment(false)}
         onSubmit={handleSubmitAppointment}
         appointment={selectedAppointment}
-        clients={Object.values(MOCK_CLIENTS_MAP)}
-        professionals={Object.values(MOCK_PROFESSIONALS_MAP)}
-        services={Object.values(MOCK_SERVICES_MAP)}
+        clients={clients}
+        professionals={professionals.map(prof => ({ 
+          id: prof.id, 
+          name: prof.user?.name || prof.name || `ID ${prof.id.substring(0,4)}?`,
+        }))}
+        services={services}
       />
     </>
   )

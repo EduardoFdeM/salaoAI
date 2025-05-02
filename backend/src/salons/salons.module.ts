@@ -5,8 +5,13 @@ import { SalonsController } from './salons.controller';
 import { WhatsappModule } from '../whatsapp/whatsapp.module';
 
 @Module({
-  imports: [PrismaModule, WhatsappModule],
-  controllers: [SalonsController],
+  imports: [
+    PrismaModule,
+    WhatsappModule,
+  ],
+  controllers: [
+    SalonsController,
+  ],
   providers: [SalonsService],
   exports: [SalonsService],
 })
