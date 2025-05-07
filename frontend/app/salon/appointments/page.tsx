@@ -194,7 +194,7 @@ export default function AppointmentsPage() {
     setShowNewAppointment(true)
     setShowDetailsModal(false)
   }
-
+  
   const handleOpenEditFromDetails = (appointment: Appointment) => {
     handleEditAppointment(appointment)
   }
@@ -384,25 +384,25 @@ export default function AppointmentsPage() {
     const sortedAppointments = sortAppointments(filterAppointments(appointments)); // Aplicar filtro e ordenação
 
     return (
-      <Table>
-        <TableHeader>
-          <TableRow>
+    <Table>
+      <TableHeader>
+        <TableRow>
             <TableHead>Data/Hora Início</TableHead>
-            <TableHead>Cliente</TableHead>
-            <TableHead className="hidden md:table-cell">Serviço</TableHead>
-            <TableHead className="hidden sm:table-cell">Profissional</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="text-right">Ações</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
+          <TableHead>Cliente</TableHead>
+          <TableHead className="hidden md:table-cell">Serviço</TableHead>
+          <TableHead className="hidden sm:table-cell">Profissional</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead className="text-right">Ações</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
           {sortedAppointments.length > 0 ? sortedAppointments.map((appt) => (
-            <TableRow key={appt.id}>
+          <TableRow key={appt.id}>
               <TableCell className="font-medium">{formatDateTime(appt.startTime)}</TableCell>
               <TableCell>{getClientName(appt)}</TableCell>
               <TableCell className="hidden md:table-cell">{getServiceName(appt)}</TableCell>
               <TableCell className="hidden sm:table-cell">{getProfessionalName(appt)}</TableCell>
-              <TableCell>
+            <TableCell>
                 <Select
                   value={appt.status}
                   onValueChange={async (newStatusValue) => {
@@ -439,12 +439,12 @@ export default function AppointmentsPage() {
                     ))}
                   </SelectContent>
                 </Select>
-              </TableCell>
-              <TableCell className="text-right space-x-2">
+            </TableCell>
+            <TableCell className="text-right space-x-2">
                 <Button variant="outline" size="icon" onClick={() => handleEditAppointment(appt)} disabled={loading}>
-                  <Edit className="h-4 w-4" />
-                  <span className="sr-only">Editar</span>
-                </Button>
+                <Edit className="h-4 w-4" />
+                <span className="sr-only">Editar</span>
+              </Button>
                 <Button 
                   variant="destructive" 
                   size="icon" 
@@ -454,17 +454,17 @@ export default function AppointmentsPage() {
                   <Trash2 className="h-4 w-4" />
                   <span className="sr-only">Cancelar</span>
                 </Button>
-              </TableCell>
-            </TableRow>
-          )) : (
-            <TableRow>
-              <TableCell colSpan={6} className="h-24 text-center">
-                Nenhum agendamento encontrado.
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+            </TableCell>
+          </TableRow>
+        )) : (
+          <TableRow>
+            <TableCell colSpan={6} className="h-24 text-center">
+              Nenhum agendamento encontrado.
+            </TableCell>
+          </TableRow>
+        )}
+      </TableBody>
+    </Table>
     );
   }
 
@@ -473,9 +473,9 @@ export default function AppointmentsPage() {
     if (error) return <p className="text-destructive">Erro ao carregar: {error}</p>;
     
     return (
-      <div className="h-[600px] max-w-full">
-        <Calendar
-          localizer={localizer}
+    <div className="h-[600px] max-w-full">
+      <Calendar
+        localizer={localizer}
           events={filterAppointments(appointments).map(appt => ({
             id: appt.id,
             title: getClientName(appt),
@@ -483,67 +483,67 @@ export default function AppointmentsPage() {
             end: new Date(appt.endTime),
             resource: appt
           }))}
-          startAccessor="start"
-          endAccessor="end"
-          view={calendarView}
-          date={calendarDate}
-          onNavigate={handleCalendarNavigate}
-          onView={handleCalendarViewChange}
-          onSelectEvent={handleSelectEvent}
-          views={['day', 'week', 'month']}
-          messages={{
-            next: "Próximo",
-            previous: "Anterior",
-            today: "Hoje",
-            month: "Mês",
-            week: "Semana",
-            day: "Dia"
-          }}
-          culture="pt-BR"
-          popup
-          className="rounded-md bg-background"
-          dayPropGetter={(date) => {
-            const today = new Date()
-            return {
-              className: format(date, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd') ? 'rbc-today' : ''
-            }
-          }}
-          eventPropGetter={(event) => {
+        startAccessor="start"
+        endAccessor="end"
+        view={calendarView}
+        date={calendarDate}
+        onNavigate={handleCalendarNavigate}
+        onView={handleCalendarViewChange}
+        onSelectEvent={handleSelectEvent}
+        views={['day', 'week', 'month']}
+        messages={{
+          next: "Próximo",
+          previous: "Anterior",
+          today: "Hoje",
+          month: "Mês",
+          week: "Semana",
+          day: "Dia"
+        }}
+        culture="pt-BR"
+        popup
+        className="rounded-md bg-background"
+        dayPropGetter={(date) => {
+          const today = new Date()
+          return {
+            className: format(date, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd') ? 'rbc-today' : ''
+          }
+        }}
+        eventPropGetter={(event) => {
             // Temporariamente desabilitar a lógica de cores para teste
             /*
-            const appointment = event.resource as Appointment
-            let backgroundColor = 'var(--primary)'
-            
-            if (appointment) {
-              switch (appointment.status) {
-                case AppointmentStatus.CONFIRMED:
+          const appointment = event.resource as Appointment
+          let backgroundColor = 'var(--primary)'
+          
+          if (appointment) {
+            switch (appointment.status) {
+              case AppointmentStatus.CONFIRMED:
                   backgroundColor = 'var(--chart-2)'; 
-                  break;
-                case AppointmentStatus.SCHEDULED:
+                break;
+              case AppointmentStatus.SCHEDULED:
                   backgroundColor = 'var(--chart-4)'; 
-                  break;
-                case AppointmentStatus.CANCELLED_BY_CLIENT:
-                case AppointmentStatus.CANCELLED_BY_SALON:
+                break;
+              case AppointmentStatus.CANCELLED_BY_CLIENT:
+              case AppointmentStatus.CANCELLED_BY_SALON:
                 case AppointmentStatus.CANCELLED:
                   backgroundColor = 'var(--destructive)'; 
-                  break;
-                case AppointmentStatus.COMPLETED:
+                break;
+              case AppointmentStatus.COMPLETED:
                   backgroundColor = 'var(--chart-3)'; 
-                  break;
-                default:
-                  break;
-              }
+                break;
+              default:
+                break;
             }
-            
-            return {
-              style: { backgroundColor }
-            }
+          }
+          
+          return {
+            style: { backgroundColor }
+          }
             */
            return {}; // Retornar objeto vazio para usar estilos padrão
-          }}
-        />
-      </div>
-    )
+        }}
+      />
+    </div>
+  )
   }
 
   return (

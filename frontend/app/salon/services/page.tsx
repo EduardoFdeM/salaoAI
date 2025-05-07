@@ -87,7 +87,7 @@ export default function ServicesPage() {
     setFormData({
       name: service.name,
       description: service.description || '',
-      price: service.price.toString(), // string
+      price: service.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), // Formatar para pt-BR
       duration: service.duration.toString(), // string
       active: service.active
     })
@@ -127,17 +127,28 @@ export default function ServicesPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    if (name === 'price' && !/^[0-9]*\\.?[0-9]*$/.test(value)) {
-        return;
-    }
-    if (name === 'duration' && !/^[0-9]*$/.test(value)) {
-        return;
-    }
 
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }))
+    if (name === 'price') {
+      const digits = value.replace(/\D/g, ''); // Remove não dígitos
+      if (digits === '') {
+        setFormData(prev => ({ ...prev, price: '' }));
+        return;
+      }
+      const numericValue = parseInt(digits, 10);
+      const formattedPrice = (numericValue / 100).toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+      setFormData(prev => ({ ...prev, price: formattedPrice }));
+    } else if (name === 'duration') {
+      // Mantém a validação original para duração, permitindo apenas números
+      if (!/^[0-9]*$/.test(value)) {
+        return;
+      }
+      setFormData(prev => ({ ...prev, [name]: value }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   }
 
   const handleSwitchChange = (checked: boolean) => {
@@ -161,8 +172,27 @@ export default function ServicesPage() {
         return;
     }
 
-    const priceAsNumber = parseFloat(formData.price?.toString() ?? '0');
-    const durationAsNumber = parseInt(formData.duration?.toString() ?? '0', 10);
+    const priceInput = formData.price?.toString().trim() ?? '0';
+    let processedPrice = priceInput;
+
+    if (priceInput.includes(',')) {
+        // Há vírgula: assume como decimal, remove pontos (milhar) e substitui vírgula por ponto
+        processedPrice = priceInput.replace(/\./g, ''); 
+        processedPrice = processedPrice.replace(',', '.');   
+    } else if (priceInput.includes('.')) {
+        // Não há vírgula, mas há ponto(s): assume o último ponto como decimal, remove os outros (milhar)
+        const parts = priceInput.split('.');
+        if (parts.length > 1) {
+            const decimalPart = parts.pop();
+            const integerPart = parts.join(''); 
+            processedPrice = integerPart + '.' + decimalPart;
+        }
+    }
+
+    const priceAsNumber = parseFloat(processedPrice);
+    // Limpa o valor da duração para garantir que apenas dígitos sejam considerados antes de parseInt
+    const durationString = formData.duration?.toString().replace(/[^0-9]/g, '') ?? '0';
+    const durationAsNumber = parseInt(durationString, 10);
 
     if (isNaN(priceAsNumber) || priceAsNumber < 0) {
          toast({
@@ -278,7 +308,7 @@ export default function ServicesPage() {
               <TableRow key={service.id}>
                 <TableCell className="font-medium">{service.name}</TableCell>
                 <TableCell className="hidden md:table-cell text-sm text-muted-foreground truncate max-w-xs">{service.description || '-'}</TableCell>
-                <TableCell>R$ {service.price.toFixed(2)}</TableCell>
+                <TableCell>R$ {service.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                 <TableCell>{service.duration} min</TableCell>
                 <TableCell>
                   <Badge variant={service.active ? "default" : "destructive"}>

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -157,5 +157,28 @@ export class AuthService {
     });
     
     return salonUser;
+  }
+
+  async generateSystemToken(salonId: string): Promise<{ token: string }> {
+    const salon = await this.prisma.salon.findUnique({
+      where: { id: salonId },
+    });
+
+    if (!salon) {
+      throw new NotFoundException('Salão não encontrado');
+    }
+
+    // Criar payload com escopo de sistema e longa duração
+    const payload = {
+      sub: 'system_n8n',
+      salon_id: salonId,
+      role: 'SYSTEM',
+      type: 'n8n_integration',
+    };
+
+    // Token válido por 24 horas
+    return {
+      token: this.jwtService.sign(payload, { expiresIn: '24h' }),
+    };
   }
 }

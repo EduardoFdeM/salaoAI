@@ -5,29 +5,39 @@ import { PrismaService } from '../prisma/prisma.service';
 export class ProfessionalsService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(salonId: string) {
+  async findAll(params: { 
+    salonId: string, 
+    activeOnly?: boolean,
+    serviceId?: string 
+  }) {
+    const { salonId, activeOnly, serviceId } = params;
+    
     return this.prisma.salonUser.findMany({
       where: {
         salonId,
-        role: "PROFESSIONAL",
+        role: 'PROFESSIONAL',
+        ...(activeOnly ? { active: true } : {}),
+        ...(serviceId ? {
+          professionalServices: {
+            some: {
+              serviceId
+            }
+          }
+        } : {})
       },
       include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-            bio: true,
-            imageUrl: true,
-          },
-        },
+        user: true,
         professionalServices: {
           include: {
-            service: true,
-          },
-        },
+            service: true
+          }
+        }
       },
+      orderBy: {
+        user: {
+          name: 'asc'
+        }
+      }
     });
   }
 

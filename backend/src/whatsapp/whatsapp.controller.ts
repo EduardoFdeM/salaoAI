@@ -29,12 +29,6 @@ export class WhatsappController {
     return this.appointmentsService.create(data);
   }
 
-  @Post('verify-client')
-  async verifyClient(@Body() data: { phone: string; salonId: string }) {
-    // Verifica se o número já é cliente do salão
-    return this.clientsService.findByPhone(data.phone, data.salonId);
-  }
-
   @Post('register-instance')
   @UseGuards(JwtAuthGuard)
   async registerInstance(@Body() data: { salonId: string; phone: string }) {

@@ -346,4 +346,144 @@ export class AppointmentsService {
       throw new InternalServerErrorException("Erro ao agendar notificação");
     }
   }
+
+  async getAvailability(
+    salonId: string,
+    date: string,
+    professionalId?: string,
+    serviceId?: string,
+  ) {
+    // Validar data
+    const searchDate = new Date(date);
+    if (isNaN(searchDate.getTime())) {
+      throw new BadRequestException('Data inválida');
+    }
+    
+    // Buscar profissionais disponíveis para esse serviço
+    const professionals = await this.prisma.salonUser.findMany({
+      where: {
+        salonId,
+        ...(professionalId ? { id: professionalId } : {}),
+        role: 'PROFESSIONAL',
+        active: true,
+        ...(serviceId ? {
+          professionalServices: {
+            some: {
+              serviceId,
+            }
+          }
+        } : {})
+      },
+      include: {
+        user: true,
+        professionalServices: true,
+      }
+    });
+
+    // Buscar agendamentos existentes para a data
+    const startOfDay = new Date(searchDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(searchDate);
+    endOfDay.setHours(23, 59, 59, 999);
+    
+    const appointments = await this.prisma.appointment.findMany({
+      where: {
+        salonId,
+        startTime: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+        status: { not: AppointmentStatus.CANCELLED },
+        ...(professionalId ? { professionalId } : {})
+      }
+    });
+
+    // Buscar horário de funcionamento do salão para esse dia
+    const salon = await this.prisma.salon.findUnique({
+      where: { id: salonId }
+    });
+
+    // Dia da semana (0 = domingo, 1 = segunda, etc.)
+    const dayOfWeek = searchDate.getDay();
+    const weekdays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const weekday = weekdays[dayOfWeek];
+    
+    // Obter horário de funcionamento do salão para esse dia da semana
+    const businessHours = salon?.businessHours as Prisma.JsonObject || {};
+    const dayConfig = businessHours[weekday] as any || { isOpen: false, slots: [] };
+    
+    if (!dayConfig.isOpen) {
+      return { available: false, message: 'Salão fechado neste dia' };
+    }
+
+    // Calcular slots disponíveis para cada profissional
+    const availableSlots = professionals.map(professional => {
+      // Obter horário de trabalho do profissional para esse dia
+      const workingHours = professional.workingHours as Prisma.JsonObject || {};
+      const profDayConfig = workingHours[weekday] as any || { isOpen: false, slots: [] };
+      
+      if (!profDayConfig.isOpen) {
+        return {
+          professionalId: professional.id,
+          professionalName: professional.user?.name || 'Profissional',
+          available: false,
+          message: 'Profissional não trabalha neste dia',
+          slots: []
+        };
+      }
+      
+      // Verificar agendamentos existentes desse profissional
+      const profAppointments = appointments.filter(
+        app => app.professionalId === professional.id
+      );
+      
+      // Gerar slots de 1 hora e filtrar os que já estão ocupados
+      const slots: { start: string; end: string }[] = [];
+      const workSlots = profDayConfig.slots || [];
+      
+      for (const slot of workSlots) {
+        const [startHour, startMinute] = slot.start.split(':').map(Number);
+        const [endHour, endMinute] = slot.end.split(':').map(Number);
+        
+        // Criar slots de hora em hora
+        for (let h = startHour; h < endHour; h++) {
+          const slotStart = new Date(searchDate);
+          slotStart.setHours(h, 0, 0, 0);
+          
+          const slotEnd = new Date(searchDate);
+          slotEnd.setHours(h + 1, 0, 0, 0);
+          
+          // Verificar se o slot está ocupado
+          const isOccupied = profAppointments.some(app => {
+            const appStart = new Date(app.startTime);
+            const appEnd = new Date(app.endTime);
+            return (
+              (slotStart <= appEnd && slotEnd >= appStart)
+            );
+          });
+          
+          if (!isOccupied) {
+            slots.push({
+              start: slotStart.toISOString(),
+              end: slotEnd.toISOString()
+            });
+          }
+        }
+      }
+      
+      return {
+        professionalId: professional.id,
+        professionalName: professional.user?.name || 'Profissional',
+        available: slots.length > 0,
+        slots
+      };
+    });
+
+    return {
+      date: searchDate.toISOString().split('T')[0],
+      salonOpen: true,
+      professionals: availableSlots
+    };
+  }
 }

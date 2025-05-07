@@ -106,11 +106,18 @@ export class ClientsService {
     });
   }
 
-  async findAllBySalonId(salonId: string): Promise<Client[]> {
+  async findAllBySalonId(salonId: string, phone?: string): Promise<Client[]> {
     return this.prisma.client.findMany({
-      where: { salonId },
+      where: {
+        salonId,
+        ...(phone ? { 
+          phone: { 
+            contains: phone.replace(/\D/g, '') // Remove caracteres não numéricos
+          } 
+        } : {})
+      },
       orderBy: {
-        name: 'asc', // Ordenar por nome por padrão
+        name: 'asc',
       },
     });
   }

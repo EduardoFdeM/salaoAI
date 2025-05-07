@@ -61,7 +61,7 @@ export class ProfessionalsController {
     if (!salonId) {
       throw new NotFoundException("Usuário não associado a um salão.");
     }
-    return this.professionalsService.findAll(salonId);
+    return this.professionalsService.findAll({ salonId });
   }
 
   @ApiOperation({ summary: "Obter um profissional específico" })
