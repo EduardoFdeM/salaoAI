@@ -144,6 +144,56 @@ export class AuthService {
   }
 
   /**
+   * Verifica se um token é válido e retorna seu payload
+   * Funciona tanto para tokens de usuário quanto de sistema
+   */
+  verifyToken(token: string): { 
+    valid: boolean; 
+    payload?: any; 
+    error?: string;
+  } {
+    try {
+      // Verificar se o token é válido (não expirado e assinatura correta)
+      const payload = this.jwtService.verify(token);
+      
+      if (!payload) {
+        return { valid: false, error: "Token inválido" };
+      }
+      
+      // Verificar se é um token de sistema
+      if (payload.sub === 'system_n8n' && payload.type === 'n8n_integration') {
+        return { 
+          valid: true, 
+          payload: {
+            isSystemToken: true,
+            salonId: payload.salon_id,
+            role: payload.role
+          }
+        };
+      }
+      
+      // Token de usuário normal
+      return { 
+        valid: true, 
+        payload: {
+          isSystemToken: false,
+          userId: payload.sub,
+          name: payload.name,
+          email: payload.email,
+          role: payload.role,
+          salonId: payload.salon_id
+        }
+      };
+    } catch (error) {
+      console.error("Error verifying token:", error);
+      return { 
+        valid: false, 
+        error: error.message || "Erro ao verificar token" 
+      };
+    }
+  }
+
+  /**
    * Obtém informações do usuário relacionadas ao salão
    */
   private async getSalonUserInfo(userId: string) {

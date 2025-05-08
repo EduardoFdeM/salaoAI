@@ -154,37 +154,4 @@ export class AppointmentsController {
     await this.appointmentsService.remove(id); 
     // O HttpCode(HttpStatus.NO_CONTENT) garante que 204 será retornado se não houver erro
   }
-
-  @Get('availability')
-  @ApiOperation({ summary: 'Verifica horários disponíveis para agendamentos' })
-  @ApiQuery({ name: 'salonId', required: true, description: 'ID do salão', type: String })
-  @ApiQuery({ name: 'date', required: true, description: 'Data para verificação (YYYY-MM-DD)', type: String })
-  @ApiQuery({ name: 'professionalId', required: false, description: 'ID do profissional', type: String })
-  @ApiQuery({ name: 'serviceId', required: false, description: 'ID do serviço', type: String })
-  @ApiResponse({ status: 200, description: 'Lista de horários disponíveis.' })
-  @ApiResponse({ status: 400, description: 'Dados inválidos.' })
-  @ApiResponse({ status: 401, description: 'Não autorizado.' })
-  @ApiResponse({ status: 403, description: 'Acesso negado.' })
-  async getAvailability(
-    @Request() req: AuthenticatedRequest,
-    @Query('salonId') salonId: string,
-    @Query('date') date: string,
-    @Query('professionalId') professionalId?: string,
-    @Query('serviceId') serviceId?: string
-  ) {
-    // Verificar se o usuário tem permissão para acessar este salão
-    const userSalonId = req.user?.salon_id;
-    if (!userSalonId || salonId !== userSalonId) {
-      throw new ForbiddenException(
-        "Você só pode verificar disponibilidade para o seu próprio salão."
-      );
-    }
-    
-    return this.appointmentsService.getAvailability(
-      salonId,
-      date,
-      professionalId,
-      serviceId
-    );
-  }
 } 

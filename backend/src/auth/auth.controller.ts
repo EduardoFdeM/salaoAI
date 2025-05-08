@@ -96,4 +96,30 @@ export class AuthController {
     
     return this.authService.generateSystemToken(data.salonId);
   }
+
+  @Post('verify-token')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verifica se um token JWT é válido' })
+  @ApiResponse({ status: 200, description: 'Informações de validade do token' })
+  async verifyToken(@Body() data: { token: string }) {
+    try {
+      // Extrair o token do corpo da requisição
+      const { token } = data;
+      
+      if (!token) {
+        return {
+          valid: false,
+          error: 'Token não fornecido',
+        };
+      }
+      
+      // Usar o novo método que verifica tokens do sistema e de usuário
+      return this.authService.verifyToken(token);
+    } catch (error) {
+      return {
+        valid: false,
+        error: error.message || 'Erro ao verificar token',
+      };
+    }
+  }
 }
