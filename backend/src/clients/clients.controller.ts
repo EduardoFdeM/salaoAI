@@ -10,6 +10,7 @@ import {
   Req,
   NotFoundException,
   ForbiddenException,
+  Query,
 } from '@nestjs/common';
 import { ClientsService } from './clients.service';
 import { CreateClientDto } from './dto/create-client.dto';
@@ -78,14 +79,19 @@ export class ClientsController {
 
   // --- Rota para Listar Clientes do Salão Logado --- //
   @Get()
-  @ApiOperation({ summary: 'Lista todos os clientes do salão logado' })
+  @ApiOperation({ summary: 'Lista todos os clientes do salão logado com filtros opcionais' })
   @ApiResponse({ status: 200, description: 'Lista de clientes retornada.' })
-  findAll(@Req() req: AuthenticatedRequest) {
+  findAll(
+    @Req() req: AuthenticatedRequest,
+    @Query('phone') phone?: string,
+    @Query('name') name?: string,
+    @Query('email') email?: string
+  ) {
     const user = req.user;
     if (!user?.salon_id) {
       throw new ForbiddenException("Usuário não associado a um salão.");
     }
-    return this.clientsService.findAllBySalonId(user.salon_id);
+    return this.clientsService.findAllBySalonId(user.salon_id, { phone, name, email });
   }
 
   // --- Rota para Obter um Cliente Específico --- //

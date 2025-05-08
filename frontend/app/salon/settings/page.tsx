@@ -266,9 +266,9 @@ export default function SettingsPage() {
     // Usar snake_case como esperado pelo backend
     if (tab === 'general') {
         payload = {
-            appointment_interval: settings.appointment_interval, // snake_case
-            booking_lead_time: settings.booking_lead_time,     // snake_case
-            booking_cancel_limit: settings.booking_cancel_limit, // snake_case
+            appointmentInterval: settings.appointment_interval, // Agora em camelCase
+            bookingLeadTime: settings.booking_lead_time,     // Agora em camelCase
+            bookingCancelLimit: settings.booking_cancel_limit, // Agora em camelCase
             clientRequiredFields: settings.clientRequiredFields,
             weekStartDay: settings.weekStartDay,
         };

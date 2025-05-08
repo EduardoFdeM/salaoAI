@@ -521,6 +521,39 @@ export class SalonsService {
         data: dataToUpdate,
       });
       console.log("Salão atualizado:", updatedSalon);
+      
+      // Notificar n8n sobre alteração nas configurações
+      try {
+        const n8nWebhookUrl = process.env.N8N_SETTINGS_WEBHOOK_URL;
+        if (n8nWebhookUrl) {
+          console.log(`Enviando configurações para webhook: ${n8nWebhookUrl}`);
+          
+          // Pode usar fetch ou axios
+          fetch(n8nWebhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              salonId: updatedSalon.id,
+              settings: {
+                clientRequiredFields: updatedSalon.clientRequiredFields,
+                appointmentInterval: updatedSalon.appointmentInterval,
+                bookingLeadTime: updatedSalon.bookingLeadTime,
+                bookingCancelLimit: updatedSalon.bookingCancelLimit,
+                businessHours: updatedSalon.businessHours,
+                aiBotEnabled: updatedSalon.aiBotEnabled
+              },
+              event: "settings_updated",
+              timestamp: new Date().toISOString()
+            })
+          }).catch(e => console.error("Erro ao notificar webhook:", e));
+        } else {
+          console.warn("URL do webhook não configurada (N8N_SETTINGS_WEBHOOK_URL)");
+        }
+      } catch (webhookError) {
+        // Apenas logar o erro, não falhar a operação principal
+        console.error("Erro ao notificar webhook de configurações:", webhookError);
+      }
+      
       return updatedSalon;
     } catch (error) {
       console.error("Erro ao atualizar configurações do salão:", error);

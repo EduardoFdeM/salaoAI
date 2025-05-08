@@ -106,16 +106,38 @@ export class ClientsService {
     });
   }
 
-  async findAllBySalonId(salonId: string, phone?: string): Promise<Client[]> {
+  async findAllBySalonId(
+    salonId: string, 
+    filters?: { phone?: string; name?: string; email?: string }
+  ): Promise<Client[]> {
+    
+    const where: Prisma.ClientWhereInput = { salonId };
+
+    // Adicionar filtros se fornecidos
+    if (filters) {
+      if (filters.phone) {
+        where.phone = { 
+          contains: filters.phone.replace(/\D/g, '') // Remove caracteres não numéricos 
+        };
+      }
+      
+      if (filters.name) {
+        where.name = { 
+          contains: filters.name,
+          mode: 'insensitive' // Busca insensível a maiúsculas/minúsculas
+        };
+      }
+      
+      if (filters.email) {
+        where.email = { 
+          contains: filters.email,
+          mode: 'insensitive'
+        };
+      }
+    }
+
     return this.prisma.client.findMany({
-      where: {
-        salonId,
-        ...(phone ? { 
-          phone: { 
-            contains: phone.replace(/\D/g, '') // Remove caracteres não numéricos
-          } 
-        } : {})
-      },
+      where,
       orderBy: {
         name: 'asc',
       },

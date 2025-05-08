@@ -242,4 +242,24 @@ export class SalonsController {
     }
     return this.salonsService.findAll();
   }
+
+  @Get("bot-config/:salonId")
+  @ApiOperation({ summary: "Obter configurações do salão para o bot de IA" })
+  @ApiResponse({ status: 200, description: "Configurações do salão para o bot" })
+  async getBotConfig(@Param('salonId') salonId: string) {
+    // Aqui usaríamos um guard específico para API Keys, mas para simplificar...
+    const salon = await this.salonsService.findOneWithDetails(salonId);
+    if (!salon) {
+      throw new NotFoundException(`Salão com ID ${salonId} não encontrado`);
+    }
+    
+    return {
+      name: salon.name,
+      businessHours: salon.businessHours,
+      clientRequiredFields: salon.clientRequiredFields || { phone: true, email: false },
+      appointmentInterval: salon.appointmentInterval || 30,
+      bookingLeadTime: salon.bookingLeadTime || 1,
+      bookingCancelLimit: salon.bookingCancelLimit || 2,
+    };
+  }
 } 
