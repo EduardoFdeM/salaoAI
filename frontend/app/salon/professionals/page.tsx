@@ -2,15 +2,15 @@
 
 import * as React from 'react'
 import { useState, useEffect } from 'react'
-import { useAuth } from '@/contexts/auth-context'
-import { useSalon } from '@/contexts/salon-context'
+import { useAuth } from '../../../contexts/auth-context'
+import { useSalon } from '../../../contexts/salon-context'
 import Image from 'next/image'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { PhoneInput } from '@/components/ui/phone-input'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../components/ui/table"
+import { Button } from "../../../components/ui/button"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../../../components/ui/dialog"
+import { Input } from "../../../components/ui/input"
+import { PhoneInput } from '../../../components/ui/phone-input'
 import { Grid, List, UserPlus, Mail, Search, PlusIcon, PencilIcon, TrashIcon, CheckCircleIcon, XCircleIcon } from 'lucide-react'
 
 interface Service {

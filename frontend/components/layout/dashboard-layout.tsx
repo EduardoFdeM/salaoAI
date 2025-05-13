@@ -3,8 +3,8 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useAuth } from '@/contexts/auth-context'
-import { UserRole } from '@/types/auth'
+import { useAuth } from '../../contexts/auth-context'
+import { UserRole } from '../../types/auth'
 import {
   LayoutDashboard,
   Users,

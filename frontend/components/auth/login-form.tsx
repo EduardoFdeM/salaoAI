@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
-import { Input } from "@/components/ui/input"
-import { useToast } from "@/hooks/use-toast"
-import { useAuth } from "@/contexts/auth-context"
-import { UserRole } from "@/types/auth"
-import { Button } from "@/components/ui/button"
+import { Input } from "../../components/ui/input"
+import { useToast } from "../../hooks/use-toast"
+import { useAuth } from "../../contexts/auth-context"
+import { UserRole } from "../../types/auth"
+import { Button } from "../../components/ui/button"
 
 const loginSchema = z.object({
   email: z.string().email("Email inválido"),

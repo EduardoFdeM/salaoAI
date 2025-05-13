@@ -4,18 +4,18 @@ import { useState, useCallback, useEffect } from 'react'
 import { Calendar, dateFnsLocalizer, View } from 'react-big-calendar'
 import { format, parse, startOfWeek, getDay, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, isValid, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Button } from "@/components/ui/button"
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Button } from "../../../components/ui/button"
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../../../components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../components/ui/table"
+import { Badge } from "../../../components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select"
 import { PlusCircle, Edit, CalendarDays, ListFilter, List, Trash2 } from 'lucide-react'
-import { Appointment, AppointmentStatus, Client, Professional, Service, SalonUser } from '@/types/salon'
-import { AppointmentForm } from '@/components/appointments/appointment-form'
-import { AppointmentDetails } from '@/components/appointments/appointment-details'
-import { Calendar as DatePicker } from "@/components/ui/calendar"
+import { Appointment, AppointmentStatus, Client, Professional, Service, SalonUser } from '../../../types/salon'
+import { AppointmentForm } from '../../../components/appointments/appointment-form'
+import { AppointmentDetails } from '../../../components/appointments/appointment-details'
+import { Calendar as DatePicker } from "../../../components/ui/calendar"
 
 // Configuração do localizador para o calendário
 const locales = {

@@ -1,19 +1,19 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Button } from "@/components/ui/button"
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Input } from "@/components/ui/input"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { useToast } from "@/hooks/use-toast"
+import { Button } from "../../../components/ui/button"
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../../../components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../components/ui/table"
+import { Input } from "../../../components/ui/input"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../../../components/ui/dialog"
+import { Label } from "../../../components/ui/label"
+import { Textarea } from "../../../components/ui/textarea"
+import { useToast } from "../../../hooks/use-toast"
 import { PlusCircle, Edit, Trash2, Search } from 'lucide-react'
-import { Client } from '@/types/salon'
-import { useAuth } from '@/contexts/auth-context'
-import { PhoneInput } from "@/components/ui/phone-input"
-import { useSalon } from '@/contexts/salon-context'
+import { Client } from '../../../types/salon'
+import { useAuth } from '../../../contexts/auth-context'
+import { PhoneInput } from "../../../components/ui/phone-input"
+import { useSalon } from '../../../contexts/salon-context'
 
 // Interface para os dados do formulário
 interface ClientFormData {
@@ -114,12 +114,12 @@ export default function ClientsPage() {
     if (!formData.name) {
         errors.push("Nome é obrigatório.");
     }
-    if (clientSettings.phone && !formData.phone) {
+    if (clientSettings.phoneRequired && !formData.phone) {
         errors.push("Telefone é obrigatório.");
     } else if (formData.phone && !isPhoneValid) {
         errors.push("Formato de telefone inválido.");
     }
-    if (clientSettings.email && !formData.email) {
+    if (clientSettings.emailRequired && !formData.email) {
         errors.push("Email é obrigatório.");
     }
     if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) {
@@ -147,9 +147,9 @@ export default function ClientsPage() {
 
     let basePayload: Partial<ClientFormData> = {
       name: formData.name,
-      phone: formData.phone || null,
-      email: formData.email || null,
-      notes: formData.notes || null,
+      phone: formData.phone || undefined,
+      email: formData.email || undefined,
+      notes: formData.notes || undefined,
     };
 
     let payload: any;
@@ -356,20 +356,20 @@ export default function ClientsPage() {
             </div>
             <div>
               <Label htmlFor="phone">
-                 Telefone {clientSettings.phone && <span className="text-red-500">*</span>}
+                 Telefone {clientSettings.phoneRequired && <span className="text-red-500">*</span>}
               </Label>
               <PhoneInput
                 id="phone"
                 value={formData.phone || ''}
                 onChange={handlePhoneInputChange}
-                required={clientSettings.phone}
+                required={clientSettings.phoneRequired}
                 disabled={isSubmitting}
               />
                {!isPhoneValid && formData.phone && <p className="text-xs text-red-500 mt-1">Formato de telefone inválido para o país selecionado.</p>}
             </div>
             <div>
               <Label htmlFor="email">
-                 Email {clientSettings.email && <span className="text-red-500">*</span>}
+                 Email {clientSettings.emailRequired && <span className="text-red-500">*</span>}
                </Label>
               <Input
                 id="email"
@@ -377,7 +377,7 @@ export default function ClientsPage() {
                 value={formData.email || ''}
                 onChange={(e) => handleInputChange('email', e.target.value)}
                 disabled={isSubmitting}
-                required={clientSettings.email}
+                required={clientSettings.emailRequired}
               />
             </div>
             <div>
@@ -399,7 +399,7 @@ export default function ClientsPage() {
               >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isSubmitting || (formData.phone && !isPhoneValid)}>
+              <Button type="submit" disabled={isSubmitting || (!!formData.phone && !isPhoneValid)}>
                 {isSubmitting ? 'Salvando...' : 'Salvar'}
               </Button>
             </DialogFooter>

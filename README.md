@@ -263,7 +263,7 @@ Salão: Salão Beleza Total (ID: 64cc5f9b-7483-44ea-9d0a-b4d37563783f)
   - Profissional Genérico: professional@example.com / professional123
   - Recepcionista Genérico: receptionist@example.com / receptionist123
   ---
-  - Dona Específica: maria.dona@email.com / senha123
+  - Dona Específica: maria.dona@email.com / 
   - Profissional Específico 1: ana.pro@email.com / senha123
   - Profissional Específico 2: joao.pro@email.com / senha123
   - Recepcionista Específico: clara.recep@email.com / senha123

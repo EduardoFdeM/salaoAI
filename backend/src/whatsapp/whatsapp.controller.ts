@@ -44,8 +44,14 @@ export class WhatsappController {
   }
   
   @Post('qr-callback')
-  async qrCallback(@Body() data: { salonId: string; qrCode: string }) {
-    // Recebe QR code da instância WhatsApp
+  async qrCallback(@Body() data: { 
+    salonId: string; 
+    qrCode?: string; 
+    n8nFlowId?: string;
+    pairingCode?: string;
+    status?: string; 
+  }) {
+    // Recebe QR code e/ou ID do fluxo do n8n
     return this.whatsappService.updateQrCode(data);
   }
   

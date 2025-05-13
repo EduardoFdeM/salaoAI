@@ -1,22 +1,22 @@
 "use client"
 
 import { useState, ChangeEvent, SyntheticEvent, useEffect } from 'react'
-import { Button } from "@/components/ui/button"
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
-import { Textarea } from "@/components/ui/textarea"
-import { PhoneInput } from '@/components/ui/phone-input'
-import { useAuth } from '@/contexts/auth-context'
-import { UserRole } from '@/types/auth'
-import { SalonSettingsData, SettingsFormData, BusinessHours } from '@/types/salon'
+import { Button } from "../../../components/ui/button"
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "../../../components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs"
+import { Input } from "../../../components/ui/input"
+import { Label } from "../../../components/ui/label"
+import { Switch } from "../../../components/ui/switch"
+import { Textarea } from "../../../components/ui/textarea"
+import { PhoneInput } from '../../../components/ui/phone-input'
+import { useAuth } from '../../../contexts/auth-context'
+import { UserRole } from '../../../types/auth'
+import { SalonSettingsData, SettingsFormData, BusinessHours } from '../../../types/salon'
 import { CheckCircle, Info } from "lucide-react"
 import Image from "next/image"
-import { useToast } from "@/hooks/use-toast"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table"
+import { useToast } from "../../../hooks/use-toast"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select"
+import { Table, TableBody, TableCell, TableRow } from "../../../components/ui/table"
 
 // Interface local para o estado do formulário, incluindo a nova config
 // Poderia ser movido para types/salon.ts se preferir
@@ -266,21 +266,21 @@ export default function SettingsPage() {
     // Usar snake_case como esperado pelo backend
     if (tab === 'general') {
         payload = {
-            appointmentInterval: settings.appointment_interval, // Agora em camelCase
-            bookingLeadTime: settings.booking_lead_time,     // Agora em camelCase
-            bookingCancelLimit: settings.booking_cancel_limit, // Agora em camelCase
+            appointment_interval: settings.appointment_interval,
+            booking_lead_time: settings.booking_lead_time,
+            booking_cancel_limit: settings.booking_cancel_limit,
             clientRequiredFields: settings.clientRequiredFields,
             weekStartDay: settings.weekStartDay,
         };
     } else if (tab === 'whatsapp') {
          payload = {
-            evolution_api_url: settings.evolution_api_url,     // snake_case
-            evolution_api_key: settings.evolution_api_key,     // snake_case
-            evolution_instance_name: settings.evolution_instance_name, // snake_case
+            evolution_api_url: settings.evolution_api_url,
+            evolution_api_key: settings.evolution_api_key,
+            evolution_instance_name: settings.evolution_instance_name,
         };
     } else if (tab === 'ai') {
         payload = {
-            ai_bot_enabled: settings.ai_bot_enabled,         // snake_case
+            ai_bot_enabled: settings.ai_bot_enabled,
         };
     } else {
         console.warn("Tentativa de salvar aba desconhecida:", tab);
@@ -683,7 +683,7 @@ export default function SettingsPage() {
                       <div className="mt-4 text-center">
                         <h3 className="mb-2 font-medium">Escaneie o QR Code com seu WhatsApp</h3>
                         <div className="inline-block p-4 bg-white border rounded-md">
-                          <Image src={qrCode} alt="WhatsApp QR Code" width={200} height={200} />
+                          <Image src={qrCode} alt="WhatsApp QR Code" width={200} height={200} className="qr-code-image" />
                         </div>
                         <p className="mt-2 text-sm text-muted-foreground">
                           Abra o WhatsApp no seu celular, vá em Menu &gt; Aparelhos conectados &gt; Conectar um aparelho
@@ -698,9 +698,7 @@ export default function SettingsPage() {
                       <div>
                         <p className="font-medium">WhatsApp Conectado</p>
                         <p className="text-sm text-muted-foreground">
-                          {/* Corrigido: Número formatado (lógica movida para dentro do componente se necessário) */}
-                          {/* Idealmente, o backend retornaria o número já formatado ou o PhoneInput faria isso */}
-                           Número: {settings.whatsappPhone || 'N/A'}
+                          Número: {settings.whatsappPhone ? `+${settings.whatsappPhone}` : 'N/A'}
                         </p>
                       </div>
                     </div>

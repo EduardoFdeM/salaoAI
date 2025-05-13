@@ -44,7 +44,7 @@ export class AppointmentsController {
 
   @Post()
   @UseGuards(RoleGuard) // Adicionar guarda de role
-  @Roles(Role.OWNER, Role.RECEPTIONIST) // Apenas Dono ou Recepcionista podem criar
+  @Roles(Role.OWNER, Role.RECEPTIONIST, Role.SYSTEM) // Apenas Dono, Recepcionista ou System podem criar
   @ApiOperation({ summary: 'Cria um novo agendamento para o salão' })
   @ApiResponse({ status: 201, description: 'Agendamento criado com sucesso.' })
   @ApiResponse({ status: 400, description: 'Dados inválidos.' })
@@ -80,12 +80,53 @@ export class AppointmentsController {
     @Query() query: any,
     @Request() req: AuthenticatedRequest
   ) {
-    // Verificar se o usuário é um profissional
-    if (req.user?.role === 'PROFESSIONAL') {
-      // Se for profissional, forçar o filtro pelo próprio ID
-      query.professionalId = req.user?.id;
+    const userSalonId = req.user?.salon_id;
+    const userRole = req.user?.role;
+
+    // Para roles com escopo de salão (OWNER, RECEPTIONIST, PROFESSIONAL, SYSTEM com salon_id)
+    // o salon_id do token é mandatório.
+    if (!userSalonId && (userRole === Role.OWNER || userRole === Role.RECEPTIONIST || userRole === Role.PROFESSIONAL || userRole === Role.SYSTEM)) {
+      throw new ForbiddenException(
+        "Usuário ou token de sistema não está associado a um salão específico.",
+      );
     }
-    
+
+    // Se um salonId foi explicitamente passado na query:
+    if (query.salonId) {
+      // E o usuário tem um salon_id no token (escopo de salão)
+      if (userSalonId) {
+        // O salonId da query DEVE corresponder ao salonId do token.
+        if (query.salonId !== userSalonId) {
+          throw new ForbiddenException(
+            "Você não tem permissão para acessar dados deste salão.",
+          );
+        }
+        // Se chegou aqui, query.salonId === userSalonId, o que é redundante, mas ok.
+        // O service usará este valor.
+      } else {
+        // O usuário não tem salon_id no token (ex: um admin global futuro).
+        // Neste caso, o salonId da query é usado para filtrar. Nenhuma ação extra aqui, o service usará query.salonId.
+      }
+    } else {
+      // Se salonId NÃO foi passado na query:
+      // E o usuário TEM um salon_id no token, usamos esse para filtrar.
+      if (userSalonId) {
+        query.salonId = userSalonId;
+      } else {
+        // Usuário não tem salon_id no token E não passou salonId na query.
+        // Se for um admin global, ele pode ver todos (sem filtro de salão).
+        // Se for outra role, isso seria um erro (já tratado acima).
+        // Para este caso (admin global sem filtro), query.salonId permanecerá undefined,
+        // e o serviço não aplicará filtro de salão.
+      }
+    }
+
+    // Aplicar filtro de professionalId se o usuário for um profissional.
+    // O ID do profissional no token (req.user.id) é o ID do SalonUser.
+    if (userRole === Role.PROFESSIONAL && req.user?.id) {
+      query.professionalId = req.user.id;
+    }
+
     return this.appointmentsService.findAll(query);
   }
 

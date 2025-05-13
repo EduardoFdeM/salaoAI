@@ -2,9 +2,9 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuth } from '@/contexts/auth-context'
-import { UserRole } from '@/types/auth'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
+import { useAuth } from '../../../contexts/auth-context'
+import { UserRole } from '../../../types/auth'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../../../components/ui/card"
 import { DollarSign, TrendingUp, Users, CreditCard } from 'lucide-react'
 
 export default function FinancialPage() {

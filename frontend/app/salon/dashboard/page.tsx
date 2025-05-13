@@ -1,10 +1,10 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs"
 import { Calendar, Clock, DollarSign, Pen, Scissors, ShoppingBag, Users } from 'lucide-react'
-import { useAuth } from '@/contexts/auth-context'
+import { useAuth } from '../../../contexts/auth-context'
 
 interface DashboardData {
   totalAppointments: number;

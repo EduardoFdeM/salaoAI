@@ -45,7 +45,7 @@ export class ClientsController {
   // --- Rota para Criar Cliente --- //
   @Post()
   @UseGuards(RoleGuard)
-  @Roles(Role.OWNER, Role.RECEPTIONIST)
+  @Roles(Role.OWNER, Role.RECEPTIONIST, Role.SYSTEM)
   @ApiOperation({ summary: 'Cria um novo cliente para o salão logado' })
   @ApiResponse({ status: 201, description: 'Cliente criado com sucesso.' })
   @ApiResponse({ status: 400, description: 'Dados inválidos (ex: campo obrigatório faltando).' })

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { getToken, getUserFromToken } from '@/lib/auth';
+import { getToken, getUserFromToken } from '../../../../lib/auth';
 
 // URL do backend
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333';

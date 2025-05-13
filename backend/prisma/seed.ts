@@ -143,6 +143,7 @@ async function main() {
         logoUrl: null,
         businessHours: businessHoursData,
         notificationSettings: notificationSettingsData,
+        n8nFlowId: null,
       },
     });
     console.log(`Salão criado: ${exampleSalon.name} (ID: ${exampleSalon.id})`);

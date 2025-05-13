@@ -2,12 +2,12 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuth } from '@/contexts/auth-context'
-import { UserRole } from '@/types/auth'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
+import { useAuth } from '../../../contexts/auth-context'
+import { UserRole } from '../../../types/auth'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../../../components/ui/card"
+import { Button } from "../../../components/ui/button"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../components/ui/table"
+import { Badge } from "../../../components/ui/badge"
 import { PlusCircle, DollarSign, Printer } from 'lucide-react'
 
 // Mock data

@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuth } from '@/contexts/auth-context'
-import { UserRole } from '@/types/auth'
-import DashboardLayout from '@/components/layout/dashboard-layout'
-import { SalonProvider } from '@/contexts/salon-context'
+import { useAuth } from '../../contexts/auth-context'
+import { UserRole } from '../../types/auth'
+import DashboardLayout from '../../components/layout/dashboard-layout'
+import { SalonProvider } from '../../contexts/salon-context'
 
 export default function SalonLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()

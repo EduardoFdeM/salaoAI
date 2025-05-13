@@ -107,40 +107,51 @@ export class ClientsService {
   }
 
   async findAllBySalonId(
-    salonId: string, 
+    salonId: string,
     filters?: { phone?: string; name?: string; email?: string }
   ): Promise<Client[]> {
-    
+    console.log(`[ClientsService] findAllBySalonId - salonId: ${salonId}, filters:`, filters); // LOG 1
+
     const where: Prisma.ClientWhereInput = { salonId };
 
-    // Adicionar filtros se fornecidos
     if (filters) {
       if (filters.phone) {
-        where.phone = { 
-          contains: filters.phone.replace(/\D/g, '') // Remove caracteres não numéricos 
-        };
+        const cleanedPhone = filters.phone.replace(/\D/g, '');
+        console.log(`[ClientsService] Cleaned phone filter: ${cleanedPhone}`); // LOG 2
+        if (cleanedPhone) { // Evitar contains com string vazia se o telefone original só tinha não-numéricos
+          where.phone = {
+            contains: cleanedPhone
+          };
+        }
       }
-      
+
       if (filters.name) {
-        where.name = { 
+        console.log(`[ClientsService] Name filter: ${filters.name}`); // LOG 3
+        where.name = {
           contains: filters.name,
           mode: 'insensitive' // Busca insensível a maiúsculas/minúsculas
         };
       }
-      
+
       if (filters.email) {
-        where.email = { 
+        console.log(`[ClientsService] Email filter: ${filters.email}`); // LOG 4
+        where.email = {
           contains: filters.email,
           mode: 'insensitive'
         };
       }
     }
 
-    return this.prisma.client.findMany({
+    console.log('[ClientsService] Prisma where clause:', JSON.stringify(where, null, 2)); // LOG 5
+
+    const results = await this.prisma.client.findMany({
       where,
       orderBy: {
         name: 'asc',
       },
     });
+
+    console.log(`[ClientsService] Found ${results.length} clients.`); // LOG 6
+    return results;
   }
 } 

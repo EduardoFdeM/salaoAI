@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { getToken } from '@/lib/auth'; // Assuming getToken gets the JWT
+import { getToken } from '../../../../../lib/auth'; // Assuming getToken gets the JWT
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333';
 const BACKEND_API_KEYS_URL = `${API_URL}/api/salon/settings/api-keys`;

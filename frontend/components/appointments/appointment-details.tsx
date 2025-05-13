@@ -1,7 +1,7 @@
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Appointment, AppointmentStatus, Client, Professional, Service } from '@/types/salon'; // Usar tipos completos
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "../../components/ui/dialog";
+import { Button } from "../../components/ui/button";
+import { Badge } from "../../components/ui/badge";
+import { Appointment, AppointmentStatus, Client, Professional, Service } from '../../types/salon'; // Usar tipos completos
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 

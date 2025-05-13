@@ -199,7 +199,7 @@ export class WhatsappService {
       where: {
         salonId,
         key: {
-          in: ['whatsappStatus', 'evolutionInstanceName', 'whatsappPhone', 'whatsappQrCode']
+          in: ['whatsappStatus', 'evolutionInstanceName', 'whatsappPhone', 'whatsappQrCode', 'whatsappPairingCode']
         }
       }
     });
@@ -208,13 +208,13 @@ export class WhatsappService {
     const whatsappSettings = settings.reduce((acc, setting) => {
       acc[setting.key] = setting.value;
       return acc;
-    }, {});
+    }, {} as Record<string, any>);
 
     return whatsappSettings;
   }
 
-  async updateQrCode(data: QrCallbackData) {
-    const { salonId, qrCode } = data;
+  async updateQrCode(data: { salonId: string; qrCode?: string; n8nFlowId?: string; pairingCode?: string; status?: string }) {
+    const { salonId, qrCode, n8nFlowId, pairingCode, status } = data;
 
     const salon = await this.prisma.salon.findUnique({
       where: { id: salonId },
@@ -223,45 +223,61 @@ export class WhatsappService {
       throw new NotFoundException(`Salão com ID ${salonId} não encontrado.`);
     }
 
-    // Atualizar QR code nas configurações
-    await this.prisma.salonSetting.upsert({
-      where: { 
-        salonId_key: {
-          salonId,
-          key: 'whatsappQrCode'
-        }
-      },
-      create: {
-        salonId,
-        key: 'whatsappQrCode',
-        value: qrCode
-      },
-      update: {
-        value: qrCode
-      }
-    });
-
-    // Atualizar status para PENDING_QR se tiver QR code
-    if (qrCode) {
-      await this.prisma.salonSetting.upsert({
-        where: { 
-          salonId_key: {
-            salonId,
-            key: 'whatsappStatus'
-          }
-        },
-        create: {
-          salonId,
-          key: 'whatsappStatus',
-          value: 'PENDING_QR'
-        },
-        update: {
-          value: 'PENDING_QR'
-        }
-      });
+    // Armazenar o ID do fluxo do n8n se fornecido
+    if (n8nFlowId) {
+      this.logger.log(`Recebido ID do fluxo do n8n: ${n8nFlowId} para o salão ${salonId}`);
+      await this.updateN8nFlowId(salonId, n8nFlowId);
     }
 
-    return { success: true };
+    // Se o status for CONNECTED, a conexão foi bem-sucedida
+    if (status === 'CONNECTED') {
+      this.logger.log(`Conexão WhatsApp estabelecida para o salão ${salonId} (Flow ID: ${n8nFlowId || 'N/A'})`);
+      await this.prisma.salonSetting.upsert({
+        where: { salonId_key: { salonId, key: 'whatsappStatus' } },
+        create: { salonId, key: 'whatsappStatus', value: 'CONNECTED' },
+        update: { value: 'CONNECTED' },
+      });
+      // Limpar QR code e pairing code, pois não são mais necessários
+      await this.prisma.salonSetting.deleteMany({
+        where: {
+          salonId,
+          key: { in: ['whatsappQrCode', 'whatsappPairingCode'] },
+        },
+      });
+      // Opcionalmente, pode-se manter o n8nFlowId se ainda não estiver no Salon model
+      // e se for relevante mantê-lo aqui também.
+      // Se n8nFlowId já está sendo salvo em Salon.n8nFlowId, não precisa duplicar.
+    } else {
+      // Lógica para quando a conexão ainda está pendente (recebendo QR code/pairing code)
+      if (qrCode) {
+        await this.prisma.salonSetting.upsert({
+          where: { salonId_key: { salonId, key: 'whatsappQrCode' } },
+          create: { salonId, key: 'whatsappQrCode', value: qrCode },
+          update: { value: qrCode },
+        });
+      }
+
+      if (pairingCode) {
+        await this.prisma.salonSetting.upsert({
+          where: { salonId_key: { salonId, key: 'whatsappPairingCode' } },
+          create: { salonId, key: 'whatsappPairingCode', value: pairingCode },
+          update: { value: pairingCode },
+        });
+      }
+
+      // Atualizar status se fornecido (e não for 'CONNECTED')
+      // ou definir como PENDING_QR se um qrCode foi recebido sem status explícito.
+      const newStatus = status || (qrCode ? 'PENDING_QR' : 'UNKNOWN');
+      if (status || qrCode) { // Apenas atualiza se houver um status novo ou QR code
+        await this.prisma.salonSetting.upsert({
+          where: { salonId_key: { salonId, key: 'whatsappStatus' } },
+          create: { salonId, key: 'whatsappStatus', value: newStatus },
+          update: { value: newStatus },
+        });
+      }
+    }
+
+    return { success: true, salonId, status: await this.getInstanceStatus(salonId) };
   }
 
   async scheduleNotification(
@@ -418,7 +434,7 @@ export class WhatsappService {
     const instanceName = `salon_${salonId.substring(0, 8)}`;
 
     // Url hardcoded do webhook para teste direto
-    const webhookUrl = "https://n8n.evergreenmkt.com.br/webhook-test/cria-instancia-salaoai";
+    const webhookUrl = "https://n8n.evergreenmkt.com.br/webhook/cria-instancia-salaoai";
     // API URL para callback
     const apiUrl = this.configService.get<string>("API_URL") || "https://1ed9-186-220-156-104.ngrok-free.app";
     const callbackUrl = `${apiUrl}/api/whatsapp/qr-callback`;
@@ -441,53 +457,26 @@ export class WhatsappService {
       // Atualizar configurações
       await this.prisma.salonSetting.upsert({
         where: { 
-          salonId_key: {
-            salonId,
-            key: 'whatsappPhone'
-          }
+          salonId_key: { salonId, key: 'whatsappPhone' }
         },
-        create: {
-          salonId,
-          key: 'whatsappPhone',
-          value: phone
-        },
-        update: {
-          value: phone
-        }
+        create: { salonId, key: 'whatsappPhone', value: phone },
+        update: { value: phone }
       });
       
       await this.prisma.salonSetting.upsert({
         where: { 
-          salonId_key: {
-            salonId,
-            key: 'evolutionInstanceName'
-          }
+          salonId_key: { salonId, key: 'evolutionInstanceName' }
         },
-        create: {
-          salonId,
-          key: 'evolutionInstanceName',
-          value: instanceName
-        },
-        update: {
-          value: instanceName
-        }
+        create: { salonId, key: 'evolutionInstanceName', value: instanceName },
+        update: { value: instanceName }
       });
       
       await this.prisma.salonSetting.upsert({
         where: { 
-          salonId_key: {
-            salonId,
-            key: 'whatsappStatus'
-          }
+          salonId_key: { salonId, key: 'whatsappStatus' }
         },
-        create: {
-          salonId,
-          key: 'whatsappStatus',
-          value: 'CONNECTING'
-        },
-        update: {
-          value: 'CONNECTING'
-        }
+        create: { salonId, key: 'whatsappStatus', value: 'CONNECTING' },
+        update: { value: 'CONNECTING' }
       });
       
       return {
@@ -498,8 +487,49 @@ export class WhatsappService {
         directCall: true
       };
     } catch (error) {
-      this.logger.error(`Erro na chamada direta: ${error.message}`);
-      throw new BadRequestException(`Falha na chamada direta ao webhook: ${error.message}`);
+      const msg = error instanceof Error ? error.message : 'Erro desconhecido';
+      this.logger.error(`Erro na chamada direta: ${msg}`);
+      throw new BadRequestException(`Falha na chamada direta ao webhook: ${msg}`);
+    }
+  }
+
+  // Método novo para atualizar o ID do fluxo do n8n
+  async updateN8nFlowId(salonId: string, flowId: string) {
+    this.logger.log(`Atualizando ID do fluxo do n8n para o salão ${salonId}: ${flowId}`);
+    try {
+      // Atualizar no Salon diretamente
+      await this.prisma.salon.update({
+        where: { id: salonId },
+        data: { n8nFlowId: flowId },
+      });
+      
+      // Também armazenar nas configurações para compatibilidade
+      await this.prisma.salonSetting.upsert({
+        where: { 
+          salonId_key: {
+            salonId,
+            key: 'n8nFlowId'
+          }
+        },
+        create: {
+          salonId,
+          key: 'n8nFlowId',
+          value: flowId
+        },
+        update: {
+          value: flowId
+        }
+      });
+      
+      return {
+        success: true,
+        salonId,
+        flowId
+      };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Erro desconhecido';
+      this.logger.error(`Erro ao atualizar ID do fluxo do n8n: ${msg}`);
+      throw new InternalServerErrorException(`Falha ao atualizar ID do fluxo: ${msg}`);
     }
   }
 }

@@ -47,6 +47,7 @@ model Salon {
   evolutionApiUrl      String?                 @map("evolution_api_url")
   evolutionApiKey      String?                 @map("evolution_api_key")
   evolutionInstanceName String?                @map("evolution_instance_name")
+  n8nFlowId            String?                 @map("n8n_flow_id") // ID do fluxo no n8n
   aiBotEnabled         Boolean?                @default(false) @map("ai_bot_enabled")
   version              Int                     @default(1)
   active               Boolean                 @default(true)
@@ -437,6 +438,7 @@ enum Role {
   OWNER
   PROFESSIONAL
   RECEPTIONIST
+  SYSTEM
 
   @@map("roles")
 }

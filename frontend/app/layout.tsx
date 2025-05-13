@@ -1,8 +1,8 @@
 import './globals.css'
-import { Toaster } from '@/components/ui/toaster'
-import { AuthProvider } from '@/contexts/auth-context'
-import { ClientLayout } from '@/components/layout/client-layout'
-import { cn } from '@/lib/utils'
+import { Toaster } from '../components/ui/toaster'
+import { AuthProvider } from '../contexts/auth-context'
+import { ClientLayout } from '../components/layout/client-layout'
+import { cn } from '../lib/utils'
 
 export const metadata = {
   title: 'Agendamento Cabeleireiros',

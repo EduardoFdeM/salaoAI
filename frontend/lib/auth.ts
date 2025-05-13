@@ -1,5 +1,5 @@
 import { jwtDecode } from 'jwt-decode'
-import type { User } from '@/types/auth'
+import type { User } from '../types/auth'
 import { parseCookies, setCookie, destroyCookie } from 'nookies'
 import type { ReadonlyRequestCookies } from 'next/dist/server/web/spec-extension/adapters/request-cookies'
 
@@ -18,7 +18,7 @@ export function setToken(token: string, ctx?: any) {
   })
 }
 
-export function getToken(options?: { cookies?: ReadonlyRequestCookies }): string | null {
+export function getToken(options?: { cookies?: ReadonlyRequestCookies | any }): string | null {
   // 1. Tenta ler do objeto cookies passado (App Router API Route/Server Component)
   if (options?.cookies?.get) {
     return options.cookies.get('token')?.value || null;
@@ -51,7 +51,7 @@ export function removeToken(ctx?: any) {
   destroyCookie(ctx, 'token', { path: '/' })
 }
 
-export function getUserFromToken(options?: { cookies?: ReadonlyRequestCookies }): User | null {
+export function getUserFromToken(options?: { cookies?: ReadonlyRequestCookies | any }): User | null {
   const token = getToken(options)
   if (!token) return null
   
@@ -71,6 +71,6 @@ export function getUserFromToken(options?: { cookies?: ReadonlyRequestCookies })
   }
 }
 
-export function isAuthenticated(options?: { cookies?: ReadonlyRequestCookies }): boolean {
+export function isAuthenticated(options?: { cookies?: ReadonlyRequestCookies | any }): boolean {
   return !!getToken(options)
 } 

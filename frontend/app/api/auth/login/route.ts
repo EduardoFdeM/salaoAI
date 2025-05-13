@@ -6,6 +6,9 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333'
 
 export async function POST(request: Request) {
   try {
+    // Log for debugging
+    console.log(`Using backend URL: ${API_URL}`);
+    
     const body = await request.json()
     const { email, password } = body
 
@@ -17,7 +20,10 @@ export async function POST(request: Request) {
     }
 
     // Fazer requisição para o backend
-    const response = await fetch(`${API_URL}/api/auth/login`, {
+    const loginUrl = `${API_URL}/api/auth/login`;
+    console.log(`Sending login request to: ${loginUrl}`);
+    
+    const response = await fetch(loginUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -27,9 +33,11 @@ export async function POST(request: Request) {
 
     // Obter dados da resposta
     const data = await response.json()
+    console.log('Login response status:', response.status);
 
     // Se a resposta não foi bem-sucedida, retornar o erro
     if (!response.ok) {
+      console.error('Login failed:', data);
       return NextResponse.json(
         { message: data.message || 'Credenciais inválidas' },
         { status: response.status }
@@ -55,7 +63,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Erro no login:', error)
     return NextResponse.json(
-      { message: 'Erro interno do servidor' },
+      { message: 'Erro interno do servidor', error: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     )
   }

@@ -15,6 +15,7 @@ import {
   AppointmentStatus,
   Prisma,
   NotificationType,
+  Service as PrismaServiceEntity,
 } from "@prisma/client";
 import { CreateAppointmentDto } from "./dto/create-appointment.dto";
 import { UpdateAppointmentDto } from "./dto/update-appointment.dto";
@@ -29,94 +30,91 @@ export class AppointmentsService {
     private readonly whatsappService: WhatsappService, // Injeção circular
   ) {}
 
+  private async getServiceById(serviceId: string): Promise<PrismaServiceEntity | null> {
+    return this.prisma.service.findUnique({ where: { id: serviceId } });
+  }
+
+  private calculateEndTime(startTime: string | Date, durationMinutes: number): Date {
+    const startDate = typeof startTime === 'string' ? new Date(startTime) : startTime;
+    return new Date(startDate.getTime() + durationMinutes * 60000);
+  }
+
   async create(createAppointmentDto: CreateAppointmentDto) {
-    const { clientId, professionalId, serviceId, salonId, startTime, endTime } =
-      createAppointmentDto;
+    const {
+      clientId,
+      professionalId,
+      serviceId,
+      salonId,
+      startTime,
+      price,
+    } = createAppointmentDto;
+    let { endTime } = createAppointmentDto;
 
-    // Verificar se o cliente existe
-    const client = await this.prisma.client.findUnique({
-      where: { id: clientId },
-    });
+    const client = await this.prisma.client.findUnique({ where: { id: clientId } });
+    if (!client) throw new NotFoundException("Cliente não encontrado");
 
-    if (!client) {
-      throw new NotFoundException("Cliente não encontrado");
-    }
-
-    // Verificar se o profissional existe
     const professional = await this.prisma.salonUser.findUnique({
       where: { id: professionalId },
       include: { user: true },
     });
+    if (!professional) throw new NotFoundException("Profissional não encontrado");
 
-    if (!professional) {
-      throw new NotFoundException("Profissional não encontrado");
+    const service = await this.getServiceById(serviceId);
+    if (!service) throw new NotFoundException("Serviço não encontrado");
+
+    const salon = await this.prisma.salon.findUnique({ where: { id: salonId } });
+    if (!salon) throw new NotFoundException("Salão não encontrado");
+
+    if (!endTime) {
+      if (service.duration && service.duration > 0) {
+        endTime = this.calculateEndTime(startTime, service.duration).toISOString();
+      } else {
+        throw new BadRequestException(
+          "endTime é obrigatório ou o serviço selecionado não possui uma duração definida.",
+        );
+      }
     }
 
-    // Verificar se o serviço existe
-    const service = await this.prisma.service.findUnique({
-      where: { id: serviceId },
-    });
-
-    if (!service) {
-      throw new NotFoundException("Serviço não encontrado");
-    }
-
-    // Verificar se o salão existe
-    const salon = await this.prisma.salon.findUnique({
-      where: { id: salonId },
-    });
-
-    if (!salon) {
-      throw new NotFoundException("Salão não encontrado");
-    }
-
-    // Verificar conflitos de horário (ignorando cancelados)
     const conflictingAppointment = await this.prisma.appointment.findFirst({
       where: {
         professionalId,
-        startTime: { lte: endTime },
-        endTime: { gte: startTime },
+        startTime: { lte: new Date(endTime) },
+        endTime: { gte: new Date(startTime) },
         status: { not: AppointmentStatus.CANCELLED },
       },
     });
 
     if (conflictingAppointment) {
       throw new BadRequestException(
-        "Já existe um agendamento para este horário",
+        "Já existe um agendamento para este horário com o profissional selecionado.",
       );
     }
 
-    // Criar o agendamento
     const appointment = await this.prisma.appointment.create({
       data: {
         clientId,
         professionalId,
         serviceId,
         salonId,
-        startTime,
-        endTime,
-        status: AppointmentStatus.PENDING,
-        price: service.price,
+        startTime: new Date(startTime),
+        endTime: new Date(endTime),
+        status: createAppointmentDto.status || AppointmentStatus.PENDING,
+        price: price !== undefined ? price : service.price,
+        notes: createAppointmentDto.notes,
       },
       include: {
         client: true,
-        professional: {
-          include: {
-            user: true,
-          },
-        },
+        professional: { include: { user: true } },
         service: true,
         salon: true,
       },
     });
 
-    // Agendar notificações
     await this.whatsappService.scheduleNotification(
       appointment.id,
       NotificationType.CONFIRMATION,
     );
 
-    // Agendar lembrete para 1 hora antes
     const reminderTime = new Date(startTime);
     reminderTime.setHours(reminderTime.getHours() - 1);
     await this.whatsappService.scheduleNotification(
@@ -236,46 +234,89 @@ export class AppointmentsService {
 
   async update(id: string, updateAppointmentDto: UpdateAppointmentDto) {
     const appointment = await this.findOne(id);
+    if (!appointment) {
+      throw new NotFoundException(`Agendamento com ID ${id} não encontrado.`);
+    }
 
-    const { startTime, endTime, status } = updateAppointmentDto;
+    let { startTime, endTime, serviceId, professionalId, status, price, notes } =
+      updateAppointmentDto;
 
-    if (startTime || endTime) {
-      const newStartTime = startTime
-        ? new Date(startTime)
-        : appointment.startTime;
-      const newEndTime = endTime ? new Date(endTime) : appointment.endTime;
+    const finalStartTime = startTime
+      ? new Date(startTime)
+      : appointment.startTime;
+    let finalEndTime = endTime ? new Date(endTime) : appointment.endTime;
+    const finalServiceId = serviceId || appointment.serviceId;
 
-      const conflictingAppointment = await this.prisma.appointment.findFirst({
+    if (!endTime && (startTime || serviceId)) {
+      const serviceToUse = serviceId
+        ? await this.getServiceById(serviceId)
+        : appointment.service;
+
+      if (!serviceToUse) {
+        throw new NotFoundException(
+          `Serviço com ID ${finalServiceId} não encontrado para cálculo do endTime.`,
+        );
+      }
+      if (serviceToUse.duration && serviceToUse.duration > 0) {
+        finalEndTime = this.calculateEndTime(finalStartTime, serviceToUse.duration);
+      } else {
+        throw new BadRequestException(
+          "Não é possível calcular endTime. O serviço selecionado não possui uma duração definida e endTime não foi fornecido.",
+        );
+      }
+    }
+    
+    if (finalStartTime >= finalEndTime) {
+        throw new BadRequestException("O horário de término deve ser posterior ao horário de início.");
+    }
+
+    if (startTime || endTime || professionalId) {
+      const professionalToCheck = professionalId || appointment.professionalId;
+      const conflicting = await this.prisma.appointment.findFirst({
         where: {
-          professionalId: appointment.professionalId,
+          professionalId: professionalToCheck,
           id: { not: id },
-          startTime: { lte: newEndTime },
-          endTime: { gte: newStartTime },
+          startTime: { lte: finalEndTime },
+          endTime: { gte: finalStartTime },
           status: { not: AppointmentStatus.CANCELLED },
         },
       });
 
-      if (conflictingAppointment) {
+      if (conflicting) {
         throw new BadRequestException(
-          "Já existe um agendamento para este horário",
+          "Já existe um agendamento para este novo horário com o profissional selecionado.",
         );
       }
     }
 
+    const dataToUpdate: Prisma.AppointmentUpdateInput = {
+      startTime: startTime ? finalStartTime : undefined,
+      endTime: finalEndTime,
+      status: status,
+      price: price,
+      notes: notes,
+      client: updateAppointmentDto.clientId
+        ? { connect: { id: updateAppointmentDto.clientId } }
+        : undefined,
+      professional: professionalId
+        ? { connect: { id: professionalId } }
+        : undefined,
+      service: serviceId ? { connect: { id: serviceId } } : undefined,
+    };
+    
+    Object.keys(dataToUpdate).forEach(key => {
+      const k = key as keyof Prisma.AppointmentUpdateInput;
+      if (dataToUpdate[k] === undefined) {
+        delete dataToUpdate[k];
+      }
+    });
+
     const updatedAppointment = await this.prisma.appointment.update({
       where: { id },
-      data: {
-        ...updateAppointmentDto,
-        startTime: startTime ? new Date(startTime) : undefined,
-        endTime: endTime ? new Date(endTime) : undefined,
-      },
+      data: dataToUpdate,
       include: {
         client: true,
-        professional: {
-          include: {
-            user: true,
-          },
-        },
+        professional: { include: { user: true } },
         service: true,
         salon: true,
       },

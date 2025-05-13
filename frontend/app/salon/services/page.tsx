@@ -1,20 +1,20 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Button } from "@/components/ui/button"
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
+import { Button } from "../../../components/ui/button"
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "../../../components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../components/ui/table"
+import { Badge } from "../../../components/ui/badge"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "../../../components/ui/dialog"
+import { Label } from "../../../components/ui/label"
+import { Input } from "../../../components/ui/input"
+import { Textarea } from "../../../components/ui/textarea"
+import { Switch } from "../../../components/ui/switch"
 import { PlusCircle, Edit, Trash2, Loader2 } from 'lucide-react'
-import { useAuth } from '@/contexts/auth-context'
-import { UserRole } from '@/types/auth'
-import { Service, ServiceFormData } from '@/types/salon'
-import { useToast } from "@/hooks/use-toast"
+import { useAuth } from '../../../contexts/auth-context'
+import { UserRole } from '../../../types/auth'
+import { Service, ServiceFormData } from '../../../types/salon'
+import { useToast } from "../../../hooks/use-toast"
 
 // Interface ajustada para price/duration como string | number no formulário
 // Se ServiceFormData em types/salon.ts já for assim, ignore.

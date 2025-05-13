@@ -1,9 +1,9 @@
 "use client"
 
 import React, { useState, ChangeEvent, useEffect, useMemo } from 'react';
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
+import { Input } from "../../components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
+import { cn } from "../../lib/utils";
 
 const COUNTRY_CODES = [
   { code: "+55", country: "Brasil", flag: "🇧🇷", placeholder: "(11) 99988-7766", minLength: 10, maxLength: 11 },

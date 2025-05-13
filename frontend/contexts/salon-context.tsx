@@ -7,6 +7,10 @@ interface SalonInfo {
   id: string;
   name: string;
   role: string;
+  clientRequiredFields?: {
+    phoneRequired: boolean;
+    emailRequired: boolean;
+  };
   // Outros dados do salão
 }
 

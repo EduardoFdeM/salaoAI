@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Appointment, AppointmentStatus, Service } from '@/types/salon'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "../../components/ui/dialog"
+import { Button } from "../../components/ui/button"
+import { Input } from "../../components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select"
+import { Appointment, AppointmentStatus, Service } from '../../types/salon'
 import { format, addHours, parseISO, isValid } from 'date-fns'
 
 // Interfaces simplificadas para evitar erros de tipo
